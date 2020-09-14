@@ -18,12 +18,16 @@ extern "C" {
 }
 #endif
 
+#define USE_PATTERN_MATCH
+
 #define GPS_RX_PIN (GPIO_NUM_4)
 #define GPS_TX_PIN (GPIO_NUM_2)
 
 static const char* TAG = "app_main";
 static MCP23017 mcp23017;
+#ifdef USE_PATTERN_MATCH
 static QueueHandle_t gps_event_queue;
+#endif
 
 void app_main() 
 {
@@ -94,11 +98,107 @@ void app_main()
         .rx_flow_ctrl_thresh = 10,
         .source_clk = UART_SCLK_APB,
     };
+#ifdef USE_PATTERN_MATCH
+    uart_driver_install(UART_NUM_1, 1024 * 2, 0, 10, &gps_event_queue, 0);
+#else
     uart_driver_install(UART_NUM_1, 1024 * 2, 0, 0, nullptr, 0);
+#endif
     uart_param_config(UART_NUM_1, &uart_config);
     uart_set_pin(UART_NUM_1, GPS_TX_PIN, GPS_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
     static uint8_t buffer[1024];
+#ifdef USE_PATTERN_MATCH
+    uart_enable_pattern_det_baud_intr(UART_NUM_1, '\n', 1, 10000, 0, 0);
+    uart_pattern_queue_reset(UART_NUM_1, 20);
+
+    uart_event_t event;
+    while (true)
+    {
+        if(xQueueReceive(gps_event_queue, (void * )&event, (portTickType)portMAX_DELAY) != pdTRUE)
+        {
+            ESP_LOGE(TAG, "failed to recieve gps event from uart event queue!");
+        }
+
+        switch(event.type)
+        {
+            case UART_DATA:
+                break;
+
+            case UART_FIFO_OVF:
+                ESP_LOGE(TAG, "UART_FIFO_OVF!");
+                uart_flush_input(UART_NUM_1);
+                xQueueReset(gps_event_queue);
+                break;
+            case UART_BUFFER_FULL:
+                ESP_LOGE(TAG, "UART_BUFFER_FULL!");
+                uart_flush_input(UART_NUM_1);
+                xQueueReset(gps_event_queue);
+                break;
+            case UART_BREAK:
+                ESP_LOGI(TAG, "UART_BREAK");
+                break;
+            case UART_PARITY_ERR:
+                ESP_LOGE(TAG, "UART_PARITY_ERR");
+                break;
+            case UART_DATA_BREAK:
+                ESP_LOGE(TAG, "UART_DATA_BREAK");
+                break;
+
+            //Event of UART frame error
+            case UART_FRAME_ERR:
+                ESP_LOGE(TAG, "UART_FRAME_ERR");
+                break;
+            case UART_EVENT_MAX:
+            default:
+                ESP_LOGI(TAG, "unknown uart event type: %d", event.type);
+                break;
+
+            case UART_PATTERN_DET:
+                size_t size;
+                uart_get_buffered_data_len(UART_NUM_1, &size);
+                int pos = uart_pattern_pop_pos(UART_NUM_1);
+                ESP_LOGD(TAG, "[UART PATTERN DETECTED] pos: %d, buffered size: %d", pos, size);
+                if (pos == -1)
+                {
+                    // There used to be a UART_PATTERN_DET event, but the pattern position queue is full so that it can not
+                    // record the position. We should set a larger queue size.
+                    // As an example, we directly flush the rx buffer here.
+                    uart_flush_input(UART_NUM_1);
+                }
+                else if (pos > sizeof(buffer)-1)
+                {
+                    ESP_LOGE(TAG, "line too long for buffer: len=%d, buffer=%u", pos, sizeof(buffer)-1);
+                    uart_flush_input(UART_NUM_1);
+                }
+                else
+                {
+                    int len = uart_read_bytes(UART_NUM_1, buffer, pos+1, 100 / portTICK_PERIOD_MS);
+                    if (len != pos+1)
+                    {
+                        ESP_LOGE(TAG, "read size mismatch expected %d, got %d", pos+1, len);
+                        uart_flush_input(UART_NUM_1);
+                    }
+                    else
+                    {
+                        buffer[len] = '\0';
+                        // remove possible cr, lf
+                        if (buffer[len-1] == '\r' || buffer[len-1] == '\n')
+                        {
+                            buffer[len-1] = '\0';
+                        }
+                        if (buffer[len-2] == '\r' || buffer[len-2] == '\n')
+                        {
+                            buffer[len-2] = '\0';
+                        }
+                        ESP_LOGI(TAG, "read data: %s", buffer);
+                    }
+                }
+                break;
+
+
+        }
+    }
+#else
     size_t index = 0;
     buffer[index] = '\0';
     while (true)
@@ -137,4 +237,5 @@ void app_main()
             }
         }
     }
+#endif
 }
