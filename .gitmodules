@@ -4,3 +4,6 @@
 [submodule "components/minmea/minmea"]
 	path = components/minmea/minmea
 	url = https://github.com/kosma/minmea.git
+[submodule "components/lvgl/lvgl"]
+	path = components/lvgl/lvgl
+	url = https://github.com/lvgl/lvgl.git

@@ -5,8 +5,9 @@
 #include "TeaMakerPins.h"
 #include "Display.h"
 #include "MCP23017.h"
-#include "PageAbout.h"
 #include "GPS.h"
+#include "PageGPS.h"
+#include "PageAbout.h"
 
 #ifdef __cplusplus
 //
@@ -76,6 +77,7 @@ void app_main()
         ESP_LOGE(TAG, "failed to initialize the Display!");
     }
 
+    new PageGPS(gps);
     new PageAbout();
 
     // turn the backlight on.
