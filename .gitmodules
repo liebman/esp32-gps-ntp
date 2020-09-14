@@ -1,6 +1,6 @@
-[submodule "components/lvgl/lvgl"]
-	path = components/lvgl/lvgl
-	url = https://github.com/liebman/lvgl.git
 [submodule "components/lvgl_cpp"]
 	path = components/lvgl_cpp
 	url = https://github.com/liebman/lvgl_cpp.git
+[submodule "components/minmea/minmea"]
+	path = components/minmea/minmea
+	url = https://github.com/kosma/minmea.git
