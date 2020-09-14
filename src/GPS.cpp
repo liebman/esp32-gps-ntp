@@ -1,6 +1,7 @@
 #include "GPS.h"
 #include "minmea.h"
 #include "esp_log.h"
+#include "string.h"
 
 static const char* TAG = "GPS";
 
@@ -51,6 +52,16 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     uart_driver_install(_uart_id, _buffer_size * 2, 0, 10, &_event_queue, 0);
     uart_param_config(_uart_id, &uart_config);
     uart_set_pin(_uart_id, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+
+    // update the baud rate to 115200
+    ESP_LOGI(TAG, "::begin changing GPS baud rate to 115200");
+    uint8_t baudRateCmd[11] = {0xA0, 0xA1, 0x00, 0x04, 0x05, 0x00, 0x05, 0x00, 0x00, 0x0D, 0x0A}; // 115200 Baud Rate
+    uart_write_bytes(_uart_id, (char*)baudRateCmd, sizeof(baudRateCmd));
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    uart_set_baudrate(_uart_id, 115200);
+    uart_flush_input(_uart_id);
+
+    ESP_LOGI(TAG, "::begin set pattern match on line terminator");
     uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
     uart_pattern_queue_reset(_uart_id, 10);
 
@@ -133,7 +144,7 @@ void GPS::process(char* sentence)
             _latitude  = minmea_tocoord(&data.rmc.latitude);
             _longitude = minmea_tocoord(&data.rmc.longitude);
 
-            ESP_LOGI(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
+            ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
                     minmea_tocoord(&data.rmc.latitude),
                     minmea_tocoord(&data.rmc.longitude),
                     minmea_tofloat(&data.rmc.speed));
@@ -149,7 +160,7 @@ void GPS::process(char* sentence)
             _sats_tracked = data.gga.satellites_tracked;
             _altitude = minmea_tofloat(&data.gga.altitude);
             _altitude_units = data.gga.altitude_units;
-            ESP_LOGI(TAG, "$xxGGA: alt:%f '%c' fix quality: %d",
+            ESP_LOGD(TAG, "$xxGGA: alt:%f '%c' fix quality: %d",
                             minmea_tofloat(&data.gga.altitude),
                             data.gga.altitude_units,
                             data.gga.fix_quality);
@@ -165,7 +176,7 @@ void GPS::process(char* sentence)
             _mode = data.gsa.mode;
             _fix_type = data.gsa.fix_type;
 
-            ESP_LOGI(TAG, "$xxGSA: fix mode=%d type=%c", data.gsa.fix_type, data.gsa.mode);
+            ESP_LOGD(TAG, "$xxGSA: fix mode=%d type=%c", data.gsa.fix_type, data.gsa.mode);
 
             break;
 
@@ -182,7 +193,7 @@ void GPS::process(char* sentence)
             break;
 
         case MINMEA_SENTENCE_GST:
-            ESP_LOGE(TAG, "::process sentence not implemented: '%s'", sentence);
+            ESP_LOGD(TAG, "::process sentence not implemented: '%s'", sentence);
             break;
 
         case MINMEA_SENTENCE_GSV:
@@ -192,7 +203,7 @@ void GPS::process(char* sentence)
                 break;
             }
             _sats_total = data.gsv.total_sats;
-            ESP_LOGI(TAG, "$xxGSV: fix total_msgs=%d msg_nr=%d total_sats=%d", data.gsv.total_msgs, data.gsv.msg_nr, data.gsv.total_sats);
+            ESP_LOGD(TAG, "$xxGSV: fix total_msgs=%d msg_nr=%d total_sats=%d", data.gsv.total_msgs, data.gsv.msg_nr, data.gsv.total_sats);
             break;
 
         case MINMEA_SENTENCE_VTG:
@@ -227,6 +238,15 @@ void GPS::process(char* sentence)
             break;
 
         case MINMEA_INVALID:
+            if (strncmp("$PSTI,00,", sentence, 9) == 0)
+            {
+                // TODO: parse $PSTI,00 for not hide it if its timing mode 2
+                if (strncmp("$PSTI,00,2,", sentence, 11) == 0)
+                {
+                    break;
+                }
+            }
+
             ESP_LOGW(TAG, "::process sentence invalid: '%s'", sentence);
             break;
 
