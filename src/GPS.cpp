@@ -1,7 +1,8 @@
 #include "GPS.h"
-#include "minmea.h"
-#include "esp_log.h"
 #include "string.h"
+#include "minmea.h"
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#include "esp_log.h"
 
 static const char* TAG = "GPS";
 
@@ -11,6 +12,14 @@ static const char* TAG = "GPS";
 
 #ifndef GPS_TASK_CORE
 #define GPS_TASK_CORE 1
+#endif
+
+#ifndef GPS_TIMER_GROUP
+#define GPS_TIMER_GROUP TIMER_GROUP_0
+#endif
+
+#ifndef GPS_TIMER_NUM
+#define GPS_TIMER_NUM TIMER_0
 #endif
 
 typedef union {
@@ -25,8 +34,9 @@ typedef union {
 } minmea_record_t;
 
 
-GPS::GPS(uart_port_t uart_id, size_t buffer_size)
-: _uart_id(uart_id),
+GPS::GPS(gpio_num_t pps_pin, uart_port_t uart_id, size_t buffer_size)
+: _pps_pin(pps_pin),
+  _uart_id(uart_id),
   _buffer_size(buffer_size)
 {
 }
@@ -38,6 +48,35 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     {
         ESP_LOGE(TAG, "::begin failed to allocate buffer!");
         return false;
+    }
+
+    timer_config_t tc = {
+        .alarm_en    = TIMER_ALARM_DIS,
+        .counter_en  = TIMER_PAUSE,
+        .intr_type   = TIMER_INTR_LEVEL,
+        .counter_dir = TIMER_COUNT_UP,
+        .auto_reload = TIMER_AUTORELOAD_DIS,
+        .divider     = 80,  // microseconds second
+    };
+    esp_err_t err = timer_init(GPS_TIMER_GROUP, GPS_TIMER_NUM, &tc);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "::begin timer_init failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
+    }
+    timer_set_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 0x00000000ULL);
+    timer_start(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+
+    if (_pps_pin != GPIO_NUM_NC)
+    {
+        ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pps_pin);
+        gpio_set_direction(_pps_pin, GPIO_MODE_INPUT);
+        gpio_set_pull_mode(_pps_pin, GPIO_PULLUP_ONLY);
+        ESP_LOGI(TAG, "::begin setup ISR");
+        gpio_set_intr_type(_pps_pin, GPIO_INTR_POSEDGE);
+        gpio_intr_enable(_pps_pin);
+        gpio_install_isr_service(0);
+        //hook isr handler for specific gpio pin
+        gpio_isr_handler_add(_pps_pin, ppsISR, this);
     }
 
     uart_config_t uart_config = {
@@ -53,13 +92,21 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     uart_param_config(_uart_id, &uart_config);
     uart_set_pin(_uart_id, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
+#ifdef SKYTRAQ
     // update the baud rate to 115200
     ESP_LOGI(TAG, "::begin changing GPS baud rate to 115200");
     uint8_t baudRateCmd[11] = {0xA0, 0xA1, 0x00, 0x04, 0x05, 0x00, 0x05, 0x00, 0x00, 0x0D, 0x0A}; // 115200 Baud Rate
-    uart_write_bytes(_uart_id, (char*)baudRateCmd, sizeof(baudRateCmd));
+    size_t baudRateSize = sizeof(baudRateCmd);
+#if 0 // does not wwork for other gps
+    const uint8_t* baudRateCmd = (const uint8_t*)"$PMTK251,115200*27\r\n";
+    size_t baudRateSize = strlen((const char*)baudRateCmd);
+#endif
+    uart_write_bytes(_uart_id, (char*)baudRateCmd, baudRateSize);
+    uart_write_bytes(_uart_id, (char*)baudRateCmd, baudRateSize);
     vTaskDelay(pdMS_TO_TICKS(1000));
     uart_set_baudrate(_uart_id, 115200);
     uart_flush_input(_uart_id);
+#endif
 
     ESP_LOGI(TAG, "::begin set pattern match on line terminator");
     uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
@@ -205,7 +252,7 @@ void GPS::process(char* sentence)
                 ESP_LOGE(TAG, "$xxGSA sentence is not parsed");
                 break;
             }
-            ESP_LOGI(TAG, "$xxGLL lat=%f lon=%f status=%c mode=%c",
+            ESP_LOGD(TAG, "$xxGLL lat=%f lon=%f status=%c mode=%c",
                           minmea_tocoord(&data.gll.longitude),
                           minmea_tocoord(&data.gll.latitude),
                           data.gll.status, data.gll.mode);
@@ -231,7 +278,7 @@ void GPS::process(char* sentence)
                 ESP_LOGE(TAG, "$xxVTG sentence is not parsed");
                 break;
             }
-            ESP_LOGI(TAG, "$xxVTG: track true_deg=%f mag_deg=%f speed knots: %f kph: %f",
+            ESP_LOGD(TAG, "$xxVTG: track true_deg=%f mag_deg=%f speed knots: %f kph: %f",
                             minmea_tofloat(&data.vtg.true_track_degrees),
                             minmea_tofloat(&data.vtg.magnetic_track_degrees),
                             minmea_tofloat(&data.vtg.speed_knots),
@@ -265,10 +312,14 @@ void GPS::process(char* sentence)
             {
                 strncpy(_psti, sentence, sizeof(_psti)-1);
                 // TODO: parse $PSTI,00 for not hide it if its timing mode 2
+#if 0
                 if (strncmp("$PSTI,00,2,", sentence, 11) == 0)
                 {
                     break;
                 }
+#else
+                break;
+#endif
             }
 
             ESP_LOGW(TAG, "::process sentence invalid: '%s'", sentence);
@@ -377,4 +428,35 @@ void GPS::task(void* data)
     ESP_LOGI(TAG, "::task - starting!");
     GPS* gps = (GPS*)data;
     gps->task();
+}
+
+uint32_t GPS::getPPSCount()
+{
+    return _pps_count;
+}
+
+uint32_t GPS::getPPSTimerMax()
+{
+    return _pps_timer_max;
+}
+
+void IRAM_ATTR GPS::pps()
+{
+    uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+    ++_pps_count;
+    if (_pps_timer_last != 0)
+    {
+        uint64_t delta = current - _pps_timer_last;
+        if (delta > _pps_timer_max)
+        {
+            _pps_timer_max = delta;
+        }
+    }
+    _pps_timer_last = current;
+}
+
+void IRAM_ATTR GPS::ppsISR(void* data)
+{
+    GPS* gps = (GPS*)data;
+    gps->pps();
 }

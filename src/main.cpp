@@ -20,10 +20,11 @@ extern "C" {
 
 #define GPS_RX_PIN (GPIO_NUM_4)
 #define GPS_TX_PIN (GPIO_NUM_2)
+#define GPS_PPS_PIN (GPIO_NUM_26)
 
 static const char* TAG = "app_main";
 static MCP23017 mcp23017;
-static GPS gps;
+static GPS gps(GPS_PPS_PIN);
 
 void app_main() 
 {

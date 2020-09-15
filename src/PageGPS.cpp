@@ -30,11 +30,11 @@ PageGPS::PageGPS(GPS& gps) : _gps(gps)
         _status   = new LVLabel(cont);
         _pos      = new LVLabel(cont);
         _rmc_time = new LVLabel(cont);
-        _zda_time = new LVLabel(cont);
+        _pps      = new LVLabel(cont);
         _psti     = new LVLabel(cont);
     
         ESP_LOGI(TAG, "creating task");
-        lv_task_create(task, 1000, LV_TASK_PRIO_LOW, this);
+        lv_task_create(task, 100, LV_TASK_PRIO_LOW, this);
     });
 }
 
@@ -73,17 +73,8 @@ void PageGPS::update()
     }
     _rmc_time->setText(buf);
 
-    time = _gps.getZDATime();
-    rt = ctime_r(&time, buf);
-    if (rt == nullptr)
-    {
-        strncpy(buf, "<date/time unknown>", sizeof(buf)-1);
-    }
-    else
-    {
-        buf[strlen(buf)-1] = '\0';
-    }
-    _zda_time->setText(buf);
+    snprintf(buf, sizeof(buf)-1, "PPS: %u %f", _gps.getPPSCount(), (double)_gps.getPPSTimerMax()/1000000.0);
+    _pps->setText(buf);
 
     _psti->setText(_gps.getPSTI());
 }
