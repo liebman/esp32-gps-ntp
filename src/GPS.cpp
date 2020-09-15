@@ -106,7 +106,6 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     vTaskDelay(pdMS_TO_TICKS(1000));
     uart_set_baudrate(_uart_id, 115200);
     uart_flush_input(_uart_id);
-//#endif
 
     ESP_LOGI(TAG, "::begin set pattern match on line terminator");
     uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
