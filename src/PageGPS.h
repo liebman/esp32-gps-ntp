@@ -18,7 +18,10 @@ private:
     LVLabel* _sats;
     LVLabel* _status;
     LVLabel* _pos;
+    LVLabel* _rmc_time;
+    LVLabel* _zda_time;
     LVLabel* _psti;
+
     LVStyle  _container_style;
 };
 

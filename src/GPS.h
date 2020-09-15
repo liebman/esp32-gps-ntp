@@ -28,6 +28,8 @@ public:
     float getLatitude();
     float getLongitude();
     char* getPSTI();
+    time_t getRMCTime();
+    time_t getZDATime();
 
 protected:
     uart_port_t _uart_id;
@@ -48,6 +50,9 @@ protected:
     float       _latitude;
     float       _longitude;
     char        _psti[81];
+    struct timespec _rmc_time;
+    struct timespec _zda_time;
+
 private:
     QueueHandle_t _event_queue;
     TaskHandle_t  _task;

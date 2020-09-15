@@ -26,10 +26,12 @@ PageGPS::PageGPS(GPS& gps) : _gps(gps)
         cont->align(nullptr, LV_ALIGN_CENTER, 0, 0);
         cont->setDragParent(true);
 
-        _sats    = new LVLabel(cont);
-        _status  = new LVLabel(cont);
-        _pos     = new LVLabel(cont);
-        _psti    = new LVLabel(cont);
+        _sats     = new LVLabel(cont);
+        _status   = new LVLabel(cont);
+        _pos      = new LVLabel(cont);
+        _rmc_time = new LVLabel(cont);
+        _zda_time = new LVLabel(cont);
+        _psti     = new LVLabel(cont);
     
         ESP_LOGI(TAG, "creating task");
         lv_task_create(task, 1000, LV_TASK_PRIO_LOW, this);
@@ -57,7 +59,31 @@ void PageGPS::update()
             _gps.getMode(), _gps.getFixType(), _gps.getFixQuality());
     _status->setText(buf);
 
-    snprintf(buf, sizeof(buf)-1, "lat: %f lon:%f alt: %0.2f%c", _gps.getLatitude(), _gps.getLongitude(), _gps.getAltitude(), _gps.getAltitudeUnits());
+    snprintf(buf, sizeof(buf)-1, "lat: %f lon:%f alt: %0.1f%c", _gps.getLatitude(), _gps.getLongitude(), _gps.getAltitude(), _gps.getAltitudeUnits());
     _pos->setText(buf);
+    time_t time = _gps.getRMCTime();
+    const char* rt = ctime_r(&time, buf);
+    if (rt == nullptr)
+    {
+        strncpy(buf, "<date/time unknown>", sizeof(buf)-1);
+    }
+    else
+    {
+        buf[strlen(buf)-1] = '\0';
+    }
+    _rmc_time->setText(buf);
+
+    time = _gps.getZDATime();
+    rt = ctime_r(&time, buf);
+    if (rt == nullptr)
+    {
+        strncpy(buf, "<date/time unknown>", sizeof(buf)-1);
+    }
+    else
+    {
+        buf[strlen(buf)-1] = '\0';
+    }
+    _zda_time->setText(buf);
+
     _psti->setText(_gps.getPSTI());
 }

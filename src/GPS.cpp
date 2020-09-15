@@ -132,6 +132,16 @@ char* GPS::getPSTI()
     return _psti;
 }
 
+time_t GPS::getRMCTime()
+{
+    return _rmc_time.tv_sec;
+}
+
+time_t GPS::getZDATime()
+{
+    return _zda_time.tv_sec;
+}
+
 void GPS::process(char* sentence)
 {
     minmea_record_t data;
@@ -148,6 +158,10 @@ void GPS::process(char* sentence)
             _valid     = data.rmc.valid;
             _latitude  = minmea_tocoord(&data.rmc.latitude);
             _longitude = minmea_tocoord(&data.rmc.longitude);
+            if (minmea_gettime(&_rmc_time, &data.rmc.date, &data.rmc.time))
+            {
+                ESP_LOGE(TAG, "::process RMC failed to convert date/time!");
+            }
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
                     minmea_tocoord(&data.rmc.latitude),
@@ -230,8 +244,12 @@ void GPS::process(char* sentence)
                 ESP_LOGE(TAG, "$xxZDA sentence is not parsed");
                 break;
             }
+            if (minmea_gettime(&_zda_time, &data.zda.date, &data.zda.time))
+            {
+                ESP_LOGE(TAG, "::process ZDA failed to convert date/time!");
+            }
 
-            ESP_LOGI(TAG, "$xxZDA: %d:%d:%d %02d.%02d.%d UTC%+03d:%02d",
+            ESP_LOGD(TAG, "$xxZDA: %d:%d:%d %02d.%02d.%d UTC%+03d:%02d",
                     data.zda.time.hours,
                     data.zda.time.minutes,
                     data.zda.time.seconds,
