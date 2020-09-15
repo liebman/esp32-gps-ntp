@@ -127,6 +127,11 @@ float GPS::getLongitude()
     return _longitude;
 }
 
+char* GPS::getPSTI()
+{
+    return _psti;
+}
+
 void GPS::process(char* sentence)
 {
     minmea_record_t data;
@@ -240,6 +245,7 @@ void GPS::process(char* sentence)
         case MINMEA_INVALID:
             if (strncmp("$PSTI,00,", sentence, 9) == 0)
             {
+                strncpy(_psti, sentence, sizeof(_psti)-1);
                 // TODO: parse $PSTI,00 for not hide it if its timing mode 2
                 if (strncmp("$PSTI,00,2,", sentence, 11) == 0)
                 {

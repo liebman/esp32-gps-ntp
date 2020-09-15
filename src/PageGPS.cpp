@@ -29,7 +29,8 @@ PageGPS::PageGPS(GPS& gps) : _gps(gps)
         _sats    = new LVLabel(cont);
         _status  = new LVLabel(cont);
         _pos     = new LVLabel(cont);
-
+        _psti    = new LVLabel(cont);
+    
         ESP_LOGI(TAG, "creating task");
         lv_task_create(task, 1000, LV_TASK_PRIO_LOW, this);
     });
@@ -58,4 +59,5 @@ void PageGPS::update()
 
     snprintf(buf, sizeof(buf)-1, "lat: %f lon:%f alt: %0.2f%c", _gps.getLatitude(), _gps.getLongitude(), _gps.getAltitude(), _gps.getAltitudeUnits());
     _pos->setText(buf);
+    _psti->setText(_gps.getPSTI());
 }

@@ -27,6 +27,7 @@ public:
     bool  getValid();
     float getLatitude();
     float getLongitude();
+    char* getPSTI();
 
 protected:
     uart_port_t _uart_id;
@@ -46,6 +47,7 @@ protected:
     bool        _valid;
     float       _latitude;
     float       _longitude;
+    char        _psti[81];
 private:
     QueueHandle_t _event_queue;
     TaskHandle_t  _task;

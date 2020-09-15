@@ -18,6 +18,7 @@ private:
     LVLabel* _sats;
     LVLabel* _status;
     LVLabel* _pos;
+    LVLabel* _psti;
     LVStyle  _container_style;
 };
 
