@@ -92,13 +92,13 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     uart_param_config(_uart_id, &uart_config);
     uart_set_pin(_uart_id, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-#ifdef SKYTRAQ
     // update the baud rate to 115200
     ESP_LOGI(TAG, "::begin changing GPS baud rate to 115200");
+#ifdef SKYTRAQ
     uint8_t baudRateCmd[11] = {0xA0, 0xA1, 0x00, 0x04, 0x05, 0x00, 0x05, 0x00, 0x00, 0x0D, 0x0A}; // 115200 Baud Rate
     size_t baudRateSize = sizeof(baudRateCmd);
-#if 0 // does not wwork for other gps
-    const uint8_t* baudRateCmd = (const uint8_t*)"$PMTK251,115200*27\r\n";
+#else
+    const uint8_t* baudRateCmd = (const uint8_t*)"$PMTK251,115200*1F\r\n";
     size_t baudRateSize = strlen((const char*)baudRateCmd);
 #endif
     uart_write_bytes(_uart_id, (char*)baudRateCmd, baudRateSize);
@@ -106,7 +106,7 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     vTaskDelay(pdMS_TO_TICKS(1000));
     uart_set_baudrate(_uart_id, 115200);
     uart_flush_input(_uart_id);
-#endif
+//#endif
 
     ESP_LOGI(TAG, "::begin set pattern match on line terminator");
     uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
