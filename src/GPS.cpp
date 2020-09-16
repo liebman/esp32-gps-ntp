@@ -92,6 +92,10 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     uart_param_config(_uart_id, &uart_config);
     uart_set_pin(_uart_id, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
+    ESP_LOGI(TAG, "::begin set pattern match on line terminator");
+    uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
+    uart_pattern_queue_reset(_uart_id, 10);
+
     // update the baud rate to 115200
     ESP_LOGI(TAG, "::begin changing GPS baud rate to 115200");
 #ifdef SKYTRAQ
@@ -102,14 +106,9 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     size_t baudRateSize = strlen((const char*)baudRateCmd);
 #endif
     uart_write_bytes(_uart_id, (char*)baudRateCmd, baudRateSize);
-    uart_write_bytes(_uart_id, (char*)baudRateCmd, baudRateSize);
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(100));
     uart_set_baudrate(_uart_id, 115200);
-    uart_flush_input(_uart_id);
-
-    ESP_LOGI(TAG, "::begin set pattern match on line terminator");
-    uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
-    uart_pattern_queue_reset(_uart_id, 10);
+    //uart_flush_input(_uart_id);
 
     xTaskCreatePinnedToCore(task, "GPS", 4096, this, GPS_TASK_PRI, &_task, GPS_TASK_CORE);
 
@@ -443,6 +442,7 @@ void IRAM_ATTR GPS::pps()
 {
     uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
     ++_pps_count;
+#if 1
     if (_pps_timer_last != 0)
     {
         uint64_t delta = current - _pps_timer_last;
@@ -452,6 +452,15 @@ void IRAM_ATTR GPS::pps()
         }
     }
     _pps_timer_last = current;
+#else
+    if (current > _pps_timer_max)
+    {
+        _pps_timer_max = current;
+        TIMERG0.hw_timer[0].load_high = 0;
+        TIMERG0.hw_timer[0].load_low  = 0;
+        TIMERG0.hw_timer[0].reload = 1;
+    }
+#endif
 }
 
 void IRAM_ATTR GPS::ppsISR(void* data)
