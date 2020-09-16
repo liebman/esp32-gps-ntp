@@ -26,10 +26,10 @@ PageGPS::PageGPS(GPS& gps) : _gps(gps)
         cont->align(nullptr, LV_ALIGN_CENTER, 0, 0);
         cont->setDragParent(true);
 
+        _rmc_time = new LVLabel(cont);
         _sats     = new LVLabel(cont);
         _status   = new LVLabel(cont);
         _pos      = new LVLabel(cont);
-        _rmc_time = new LVLabel(cont);
         _pps      = new LVLabel(cont);
         _psti     = new LVLabel(cont);
     
@@ -73,7 +73,9 @@ void PageGPS::update()
     }
     _rmc_time->setText(buf);
 
-    snprintf(buf, sizeof(buf)-1, "PPS: %u %f", _gps.getPPSCount(), (double)_gps.getPPSTimerMax()/1000000.0);
+    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\n min=%f max=%f", _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),
+                                (double)_gps.getPPSTimerMin()/1000000.0,
+                                (double)_gps.getPPSTimerMax()/1000000.0);
     _pps->setText(buf);
 
     _psti->setText(_gps.getPSTI());

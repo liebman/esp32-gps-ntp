@@ -43,6 +43,7 @@ GPS::GPS(gpio_num_t pps_pin, uart_port_t uart_id, size_t buffer_size)
 
 bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
 {
+    ESP_LOGI(TAG, "::begin allocating uart buffer");
     _buffer = new char[_buffer_size];
     if (_buffer == nullptr)
     {
@@ -50,8 +51,9 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         return false;
     }
 
+    ESP_LOGI(TAG, "::begin configuring and starting timer");
     timer_config_t tc = {
-        .alarm_en    = TIMER_ALARM_DIS,
+        .alarm_en    = TIMER_ALARM_EN,
         .counter_en  = TIMER_PAUSE,
         .intr_type   = TIMER_INTR_LEVEL,
         .counter_dir = TIMER_COUNT_UP,
@@ -64,6 +66,10 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         ESP_LOGE(TAG, "::begin timer_init failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
     }
     timer_set_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 0x00000000ULL);
+    timer_set_alarm_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 1000010);
+    timer_enable_intr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+    timer_isr_register(GPS_TIMER_GROUP, GPS_TIMER_NUM, timeoutISR,
+                       (void *) this, ESP_INTR_FLAG_IRAM, NULL);
     timer_start(GPS_TIMER_GROUP, GPS_TIMER_NUM);
 
     if (_pps_pin != GPIO_NUM_NC)
@@ -71,7 +77,7 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pps_pin);
         gpio_set_direction(_pps_pin, GPIO_MODE_INPUT);
         gpio_set_pull_mode(_pps_pin, GPIO_PULLUP_ONLY);
-        ESP_LOGI(TAG, "::begin setup ISR");
+        ESP_LOGI(TAG, "::begin setup ppsISR");
         gpio_set_intr_type(_pps_pin, GPIO_INTR_POSEDGE);
         gpio_intr_enable(_pps_pin);
         gpio_install_isr_service(0);
@@ -79,6 +85,7 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         gpio_isr_handler_add(_pps_pin, ppsISR, this);
     }
 
+    ESP_LOGI(TAG, "::begin configuring UART");
     uart_config_t uart_config = {
         .baud_rate = 9600,
         .data_bits = UART_DATA_8_BITS,
@@ -92,12 +99,13 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     uart_param_config(_uart_id, &uart_config);
     uart_set_pin(_uart_id, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-    ESP_LOGI(TAG, "::begin set pattern match on line terminator");
+    ESP_LOGI(TAG, "::begin set UART pattern match on line terminator");
     uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
     uart_pattern_queue_reset(_uart_id, 10);
-
+#if 1
     // update the baud rate to 115200
     ESP_LOGI(TAG, "::begin changing GPS baud rate to 115200");
+#define SKYTRAQ
 #ifdef SKYTRAQ
     uint8_t baudRateCmd[11] = {0xA0, 0xA1, 0x00, 0x04, 0x05, 0x00, 0x05, 0x00, 0x00, 0x0D, 0x0A}; // 115200 Baud Rate
     size_t baudRateSize = sizeof(baudRateCmd);
@@ -109,6 +117,7 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     vTaskDelay(pdMS_TO_TICKS(100));
     uart_set_baudrate(_uart_id, 115200);
     //uart_flush_input(_uart_id);
+#endif
 
     xTaskCreatePinnedToCore(task, "GPS", 4096, this, GPS_TASK_PRI, &_task, GPS_TASK_CORE);
 
@@ -190,6 +199,7 @@ time_t GPS::getZDATime()
 void GPS::process(char* sentence)
 {
     minmea_record_t data;
+    ESP_LOGV(TAG, "::process  '%s'", sentence);
 
     switch (minmea_sentence_id(sentence, false))
     {
@@ -438,33 +448,67 @@ uint32_t GPS::getPPSTimerMax()
     return _pps_timer_max;
 }
 
+uint32_t GPS::getPPSTimerMin()
+{
+    return _pps_timer_min;
+}
+
+uint32_t GPS::getPPSMissed()
+{
+    return _pps_missed;
+}
+
+uint32_t GPS::getPPSShort()
+{
+    return _pps_short;
+}
+
 void IRAM_ATTR GPS::pps()
 {
     uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+    TIMERG0.hw_timer[GPS_TIMER_NUM].load_high = 0;
+    TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
+    TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
     ++_pps_count;
-#if 1
-    if (_pps_timer_last != 0)
+
+    if (current < 999000)
     {
-        uint64_t delta = current - _pps_timer_last;
-        if (delta > _pps_timer_max)
+        ++_pps_short;
+    }
+    else
+    {
+        if (current < _pps_timer_min)
         {
-            _pps_timer_max = delta;
+            _pps_timer_min = current;
         }
     }
-    _pps_timer_last = current;
-#else
+
     if (current > _pps_timer_max)
     {
         _pps_timer_max = current;
-        TIMERG0.hw_timer[0].load_high = 0;
-        TIMERG0.hw_timer[0].load_low  = 0;
-        TIMERG0.hw_timer[0].reload = 1;
     }
-#endif
+    // reset the timer
 }
 
 void IRAM_ATTR GPS::ppsISR(void* data)
 {
     GPS* gps = (GPS*)data;
     gps->pps();
+}
+
+void IRAM_ATTR GPS::timeout()
+{
+    ++_pps_missed;
+    _pps_timer_max = 0;
+    timer_group_clr_intr_status_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+    TIMERG0.hw_timer[GPS_TIMER_NUM].load_high = 0;
+    TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
+    TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
+    timer_group_enable_alarm_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+}
+
+void IRAM_ATTR GPS::timeoutISR(void* data)
+{
+    GPS* gps = (GPS*)data;
+    gps->timeout();
 }

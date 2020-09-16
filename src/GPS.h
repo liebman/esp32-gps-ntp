@@ -33,6 +33,9 @@ public:
     time_t getZDATime();
     uint32_t getPPSCount();
     uint32_t getPPSTimerMax();
+    uint32_t getPPSTimerMin();
+    uint32_t getPPSMissed();
+    uint32_t getPPSShort();
 
 protected:
     gpio_num_t  _pps_pin;
@@ -56,8 +59,9 @@ protected:
     char        _psti[81];
     volatile uint32_t _pps_count      = 0;
     volatile uint32_t _pps_missed     = 0;
+    volatile uint32_t _pps_short      = 0;
     volatile uint32_t _pps_timer_max  = 0;
-    volatile uint64_t _pps_timer_last = 0ULL;
+    volatile uint32_t _pps_timer_min  = 2000000;
 
     struct timespec _rmc_time;
     struct timespec _zda_time;
@@ -72,6 +76,8 @@ private:
     static void task(void* data);
     void   pps();
     static void ppsISR(void* data);
+    void   timeout();
+    static void timeoutISR(void* data);
 };
 
 #endif // _LINE_READER_H
