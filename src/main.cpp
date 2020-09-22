@@ -28,7 +28,7 @@ static GPS gps(GPS_PPS_PIN);
 
 void app_main() 
 {
-    ESP_LOGI(TAG, "Starting!");
+    ESP_LOGI(TAG, "Starting with priority %d", uxTaskPriorityGet(nullptr));
 
     // configure reset gpio as output, no interrupts or pull-up/down
     gpio_config_t io_conf;
@@ -81,13 +81,52 @@ void app_main()
     new PageGPS(gps);
     new PageAbout();
 
+#if 1
     // turn the backlight on.
     ESP_LOGI(TAG,  "turning backlight on");
     mcp23017.portMode(MCP23017::B, 0, TM_BACKLIGHT_BIT);
     mcp23017.portWrite(MCP23017::B, TM_BACKLIGHT_BIT, TM_BACKLIGHT_BIT);
+#endif
 
     if (!gps.begin(GPS_TX_PIN, GPS_RX_PIN))
     {
         ESP_LOGE(TAG, "failed to start gps!");
+    }
+
+    // lets monitor the touch input.
+    io_conf.pin_bit_mask = TOUCH_IRQ_SEL;
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    err = gpio_config(&io_conf);
+
+    time_t last_touch = time(nullptr);
+    bool is_on = true;
+    while(true)
+    {
+        time_t now = time(nullptr);
+        if (gpio_get_level(TOUCH_IRQ_PIN) == 0)
+        {
+            last_touch = now;
+        }
+
+        if ((now - last_touch) > 3600) // 1 hr
+        {
+            if (is_on)
+            {
+                ESP_LOGI(TAG, "turning OFF backlight");
+                mcp23017.portWrite(MCP23017::B, 0, TM_BACKLIGHT_BIT);
+                is_on = false;
+            }
+        }
+        else if (!is_on)
+        {
+            ESP_LOGI(TAG, "turning ON backlight");
+            mcp23017.portWrite(MCP23017::B, TM_BACKLIGHT_BIT, TM_BACKLIGHT_BIT);
+            is_on = true;
+        }
+
+        vTaskDelay(10);
     }
 }

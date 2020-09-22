@@ -11,8 +11,9 @@
 
 class GPS
 {
+    
 public:
-    GPS(gpio_num_t pps_pin = GPIO_NUM_NC, uart_port_t uart_id = UART_NUM_1, size_t buffer_size = 1024);
+    GPS(gpio_num_t pps_pin = GPIO_NUM_NC, uart_port_t uart_id = UART_NUM_1, size_t buffer_size = 2048);
     bool  begin(gpio_num_t tx_pin, gpio_num_t rx_pin);
     // from GSV
     int   getSatsTotal();
@@ -67,7 +68,19 @@ protected:
     struct timespec _zda_time;
 
 private:
+    enum pps_event_t {
+        PPS_MISSED,
+        PPS_SHORT,
+        PPS_MAX_UPDATE,
+        PPS_MIN_UPDATE,
+    };
+    typedef struct pps_event_msg {
+        pps_event_t type;
+        uint32_t value;
+    } pps_event_msg_t;
+
     QueueHandle_t _event_queue;
+    QueueHandle_t _pps_event_queue;
     TaskHandle_t  _task;
     intr_handle_t _timer_int;
 
@@ -78,6 +91,8 @@ private:
     static void ppsISR(void* data);
     void   timeout();
     static void timeoutISR(void* data);
+
+    static void ppsEventLogger(void* data);
 };
 
 #endif // _LINE_READER_H

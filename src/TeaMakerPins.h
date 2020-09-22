@@ -12,6 +12,9 @@ const uint8_t TM_PIN_ONEWIRE = 26;
 const uint8_t TM_BACKLIGHT_BIT  = 0b10000000;
 #endif // OLD_V8_BOARD
 
+#define TOUCH_IRQ_PIN GPIO_NUM_36
+#define TOUCH_IRQ_SEL GPIO_SEL_36
+
 // first I2C buss (internal) "Wire"
 const uint8_t TM_PIN_SDA  = 16;
 const uint8_t TM_PIN_SCL  = 17;

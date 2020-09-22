@@ -7,7 +7,7 @@
 static const char* TAG = "GPS";
 
 #ifndef GPS_TASK_PRI
-#define GPS_TASK_PRI 5
+#define GPS_TASK_PRI configMAX_PRIORITIES-1
 #endif
 
 #ifndef GPS_TASK_CORE
@@ -43,6 +43,8 @@ GPS::GPS(gpio_num_t pps_pin, uart_port_t uart_id, size_t buffer_size)
 
 bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
 {
+    // create PPS queue
+    _pps_event_queue = xQueueCreate(20, sizeof(pps_event_msg_t));
     ESP_LOGI(TAG, "::begin allocating uart buffer");
     _buffer = new char[_buffer_size];
     if (_buffer == nullptr)
@@ -66,7 +68,7 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         ESP_LOGE(TAG, "::begin timer_init failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
     }
     timer_set_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 0x00000000ULL);
-    timer_set_alarm_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 1000010);
+    timer_set_alarm_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 1005000);
     timer_enable_intr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
     timer_isr_register(GPS_TIMER_GROUP, GPS_TIMER_NUM, timeoutISR,
                        (void *) this, ESP_INTR_FLAG_IRAM, NULL);
@@ -102,12 +104,46 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     ESP_LOGI(TAG, "::begin set UART pattern match on line terminator");
     uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
     uart_pattern_queue_reset(_uart_id, 10);
-#if 1
+#if 0
     // update the baud rate to 115200
     ESP_LOGI(TAG, "::begin changing GPS baud rate to 115200");
-#define SKYTRAQ
-#ifdef SKYTRAQ
+//#define SKYTRAQ
+#define UBLOX6M
+#if defined(SKYTRAQ)
     uint8_t baudRateCmd[11] = {0xA0, 0xA1, 0x00, 0x04, 0x05, 0x00, 0x05, 0x00, 0x00, 0x0D, 0x0A}; // 115200 Baud Rate
+    size_t baudRateSize = sizeof(baudRateCmd);
+#elif defined(UBLOX6M)
+    uint8_t baudRateCmd[] = {
+        0xB5, // sync char 1
+        0x62, // sync char 2
+        0x06, // class
+        0x00, // id
+        0x14, // length
+        0x00, // 
+        0x01, // payload
+        0x00, // payload
+        0x00, // payload
+        0x00, // payload
+        0xD0, // payload
+        0x08, // payload
+        0x00, // payload
+        0x00, // payload
+        0x00, // payload
+        0xC2, // payload
+        0x01, // payload
+        0x00, // payload
+        0x07, // payload
+        0x00, // payload
+        0x03, // payload
+        0x00, // payload
+        0x00, // payload
+        0x00, // payload
+        0x00, // payload
+        0x00, // payload
+        
+        0xC0, // CK_A
+        0x7E, // CK_B
+    };
     size_t baudRateSize = sizeof(baudRateCmd);
 #else
     const uint8_t* baudRateCmd = (const uint8_t*)"$PMTK251,115200*1F\r\n";
@@ -119,7 +155,11 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     //uart_flush_input(_uart_id);
 #endif
 
+    ESP_LOGI(TAG, "::begin create GPS task at priority %d core %d", GPS_TASK_PRI, GPS_TASK_CORE);
     xTaskCreatePinnedToCore(task, "GPS", 4096, this, GPS_TASK_PRI, &_task, GPS_TASK_CORE);
+
+    ESP_LOGI(TAG, "::begin create GPSPPS task at priority %d core %d", GPS_TASK_PRI-1, GPS_TASK_CORE);
+    xTaskCreatePinnedToCore(ppsEventLogger, "GPSPPS", 2048, this, GPS_TASK_PRI-1, nullptr, GPS_TASK_CORE);
 
     return true;
 }
@@ -347,6 +387,7 @@ void GPS::task()
         if(xQueueReceive(_event_queue, (void * )&event, (portTickType)portMAX_DELAY) != pdTRUE)
         {
             ESP_LOGE(TAG, "failed to recieve gps event from uart event queue!");
+            continue;
         }
 
         switch(event.type)
@@ -466,28 +507,47 @@ uint32_t GPS::getPPSShort()
 void IRAM_ATTR GPS::pps()
 {
     uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+    // reset the timer
     TIMERG0.hw_timer[GPS_TIMER_NUM].load_high = 0;
     TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
     TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
     ++_pps_count;
 
+    bool send = false;
+    pps_event_msg_t msg {.type=PPS_SHORT, .value=(uint32_t)current};
+
     if (current < 999000)
     {
         ++_pps_short;
+        msg.type = PPS_SHORT;
+        send = true;
     }
     else
     {
         if (current < _pps_timer_min)
         {
             _pps_timer_min = current;
+            msg.type = PPS_MIN_UPDATE;
+            send = true;
         }
     }
 
     if (current > _pps_timer_max)
     {
         _pps_timer_max = current;
+        msg.type = PPS_MAX_UPDATE;
+        send = true;
     }
-    // reset the timer
+
+    if (send)
+    {
+        BaseType_t yield = pdFALSE;
+        xQueueSendFromISR(_pps_event_queue, &msg, &yield);
+        if (yield)
+        {
+            portYIELD_FROM_ISR();
+        }
+    }
 }
 
 void IRAM_ATTR GPS::ppsISR(void* data)
@@ -505,10 +565,56 @@ void IRAM_ATTR GPS::timeout()
     TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
     TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
     timer_group_enable_alarm_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+
+    pps_event_msg_t msg {.type=PPS_MISSED, .value=0};
+    BaseType_t yield = pdFALSE;
+    xQueueSendFromISR(_pps_event_queue, &msg, &yield);
+    if (yield)
+    {
+        portYIELD_FROM_ISR();
+    }
 }
 
 void IRAM_ATTR GPS::timeoutISR(void* data)
 {
     GPS* gps = (GPS*)data;
     gps->timeout();
+}
+
+void GPS::ppsEventLogger(void*data)
+{
+    GPS* gps = (GPS*)data;
+    pps_event_msg_t event;
+    while(true)
+    {
+        if(xQueueReceive(gps->_pps_event_queue, (void * )&event, (portTickType)portMAX_DELAY) != pdTRUE)
+        {
+            ESP_LOGE(TAG, "failed to recieve gps event from uart event queue!");
+            continue;
+        }
+        const char* event_name = "<UNKNOWN>";
+        switch (event.type)
+        {
+        case PPS_MISSED:
+            event_name = "MISSED";
+            break;
+
+        case PPS_SHORT:
+            event_name = "SHORT";
+            break;
+
+        case PPS_MIN_UPDATE:
+            event_name = "MIN";
+            break;
+
+        case PPS_MAX_UPDATE:
+            event_name = "MAX";
+            break;
+
+        default:
+            break;
+        }
+
+        ESP_LOGW(TAG, "::ppsEventLogger %s:%07u tracked:%d quality:%d", event_name, event.value, gps->_sats_tracked, gps->_fix_quality);
+    }
 }
