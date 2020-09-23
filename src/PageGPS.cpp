@@ -12,12 +12,14 @@ static const char* TAG = "PageGPS";
 PageGPS::PageGPS(GPS& gps) : _gps(gps)
 {
     WithDisplayLock([this](){
-        _page = Display::getDisplay().newPage("GPS");
         _container_style.setPadInner(LV_STATE_DEFAULT, LV_DPX(2));
         _container_style.setPad(LV_STATE_DEFAULT, LV_DPX(1), LV_DPX(1), LV_DPX(1), LV_DPX(1));
         _container_style.setMargin(LV_STATE_DEFAULT, 0, 0, 0, 0);
         _container_style.setBorderWidth(LV_STATE_DEFAULT, 0);
         _container_style.setShadowWidth(LV_STATE_DEFAULT, 0);
+
+        _page = Display::getDisplay().newPage("GPS");
+        _page->addStyle(LV_PAGE_PART_SCROLLABLE, &_container_style);
 
         LVContainer* cont = new LVContainer(_page);
         cont->setFit(LV_FIT_PARENT/*, LV_FIT_TIGHT*/);
