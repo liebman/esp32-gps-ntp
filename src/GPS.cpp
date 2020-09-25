@@ -3,6 +3,7 @@
 #include "minmea.h"
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
+#include <sys/time.h>
 
 static const char* TAG = "GPS";
 
@@ -104,15 +105,13 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     ESP_LOGI(TAG, "::begin set UART pattern match on line terminator");
     uart_enable_pattern_det_baud_intr(_uart_id, '\n', 1, 10000, 0, 0);
     uart_pattern_queue_reset(_uart_id, 10);
-#if 0
-    // update the baud rate to 115200
-    ESP_LOGI(TAG, "::begin changing GPS baud rate to 115200");
-//#define SKYTRAQ
-#define UBLOX6M
-#if defined(SKYTRAQ)
+#if CONFIG_GPSNTP_ENABLE_115220BAUD
+#if CONFIG_GPSNTP_GPS_TYPE_SKYTRAQ
+    const char* gpstype = "SKYTRAQ";
     uint8_t baudRateCmd[11] = {0xA0, 0xA1, 0x00, 0x04, 0x05, 0x00, 0x05, 0x00, 0x00, 0x0D, 0x0A}; // 115200 Baud Rate
     size_t baudRateSize = sizeof(baudRateCmd);
-#elif defined(UBLOX6M)
+#elif CONFIG_GPSNTP_GPS_TYPE_UBLOX6M
+    const char* gpstype = "UBLOX6M";
     uint8_t baudRateCmd[] = {
         0xB5, // sync char 1
         0x62, // sync char 2
@@ -145,10 +144,13 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         0x7E, // CK_B
     };
     size_t baudRateSize = sizeof(baudRateCmd);
-#else
+#elif CONFIG_GPSNTP_GPS_TYPE_MTK3339
+    const char* gpstype = "MTK3339";
     const uint8_t* baudRateCmd = (const uint8_t*)"$PMTK251,115200*1F\r\n";
     size_t baudRateSize = strlen((const char*)baudRateCmd);
 #endif
+    // update the baud rate to 115200
+    ESP_LOGI(TAG, "::begin changing GPS baud rate to 115200 for %s", gpstype);
     uart_write_bytes(_uart_id, (char*)baudRateCmd, baudRateSize);
     vTaskDelay(pdMS_TO_TICKS(100));
     uart_set_baudrate(_uart_id, 115200);
@@ -256,6 +258,19 @@ void GPS::process(char* sentence)
             if (minmea_gettime(&_rmc_time, &data.rmc.date, &data.rmc.time))
             {
                 ESP_LOGE(TAG, "::process RMC failed to convert date/time!");
+            }
+
+            if (_valid && _rmc_time.tv_sec != 0 && _rmc_time.tv_sec != _time && _pps_count > 2)
+            {
+                ESP_LOGE(TAG, "setting time from RMC (time:%ld != rmc:%ld)", _time, _rmc_time.tv_sec);
+                _time = _rmc_time.tv_sec;
+                struct timeval tv;
+                uint64_t usecs;
+                timer_set_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 0x00000000ULL);
+                timer_get_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, &usecs);
+                tv.tv_sec = _time;
+                tv.tv_usec = usecs;
+                settimeofday(&tv, nullptr);
             }
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
@@ -512,6 +527,7 @@ void IRAM_ATTR GPS::pps()
     TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
     TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
     ++_pps_count;
+    ++_time;
 
     bool send = false;
     pps_event_msg_t msg {.type=PPS_SHORT, .value=(uint32_t)current};
