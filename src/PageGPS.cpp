@@ -75,9 +75,11 @@ void PageGPS::update()
     }
     _rmc_time->setText(buf);
 
-    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\n min=%f max=%f", _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),
+    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin=%f\nmax=%f\nlast=%f",
+                                 _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),
                                 (double)_gps.getPPSTimerMin()/1000000.0,
-                                (double)_gps.getPPSTimerMax()/1000000.0);
+                                (double)_gps.getPPSTimerMax()/1000000.0,
+                                (double)_gps.getPPSLast()/1000000.0);
     _pps->setText(buf);
 
     _psti->setText(_gps.getPSTI());

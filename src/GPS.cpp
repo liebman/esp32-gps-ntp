@@ -17,11 +17,15 @@ static const char* TAG = "GPS";
 
 #ifndef GPS_TIMER_GROUP
 #define GPS_TIMER_GROUP TIMER_GROUP_0
+#define GPS_TIME_GROUP_VAR TIMERG0
 #endif
 
 #ifndef GPS_TIMER_NUM
-#define GPS_TIMER_NUM TIMER_0
+#define GPS_TIMER_NUM TIMER_1
 #endif
+
+#define PPS_SHORT_VALUE  999500
+#define PPS_MISS_VALUE  1000500 // 500 usec max
 
 typedef union {
     struct minmea_sentence_rmc rmc;
@@ -44,8 +48,6 @@ GPS::GPS(gpio_num_t pps_pin, uart_port_t uart_id, size_t buffer_size)
 
 bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
 {
-    // create PPS queue
-    _pps_event_queue = xQueueCreate(20, sizeof(pps_event_msg_t));
     ESP_LOGI(TAG, "::begin allocating uart buffer");
     _buffer = new char[_buffer_size];
     if (_buffer == nullptr)
@@ -69,10 +71,10 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         ESP_LOGE(TAG, "::begin timer_init failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
     }
     timer_set_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 0x00000000ULL);
-    timer_set_alarm_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 1005000);
+    timer_set_alarm_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, PPS_MISS_VALUE);
     timer_enable_intr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
     timer_isr_register(GPS_TIMER_GROUP, GPS_TIMER_NUM, timeoutISR,
-                       (void *) this, ESP_INTR_FLAG_IRAM, NULL);
+                       (void *) this, ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_LEVEL6, NULL);
     timer_start(GPS_TIMER_GROUP, GPS_TIMER_NUM);
 
     if (_pps_pin != GPIO_NUM_NC)
@@ -159,9 +161,6 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
 
     ESP_LOGI(TAG, "::begin create GPS task at priority %d core %d", GPS_TASK_PRI, GPS_TASK_CORE);
     xTaskCreatePinnedToCore(task, "GPS", 4096, this, GPS_TASK_PRI, &_task, GPS_TASK_CORE);
-
-    ESP_LOGI(TAG, "::begin create GPSPPS task at priority %d core %d", GPS_TASK_PRI-1, GPS_TASK_CORE);
-    xTaskCreatePinnedToCore(ppsEventLogger, "GPSPPS", 2048, this, GPS_TASK_PRI-1, nullptr, GPS_TASK_CORE);
 
     return true;
 }
@@ -519,52 +518,38 @@ uint32_t GPS::getPPSShort()
     return _pps_short;
 }
 
+uint32_t GPS::getPPSLast()
+{
+    return _pps_last;
+}
+
+
 void IRAM_ATTR GPS::pps()
 {
     uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
     // reset the timer
-    TIMERG0.hw_timer[GPS_TIMER_NUM].load_high = 0;
-    TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
-    TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
+    GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].load_high = 0;
+    GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].load_low  = 0;
+    GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].reload = 1;
+
+    _pps_last = (uint32_t)current;
     ++_pps_count;
+    ++_time;
 
-    bool send = false;
-    pps_event_msg_t msg {.type=PPS_SHORT, .value=(uint32_t)current};
-
-    if (current < 900000)
+    if (_pps_last < PPS_SHORT_VALUE)
     {
         ++_pps_short;
-        msg.type = PPS_SHORT;
-        send = true;
-    }
-    else
-    {
-        // only increment time if we are not on a short pps interrupt
-        ++_time;
-
-        if (current < _pps_timer_min)
-        {
-            _pps_timer_min = current;
-            msg.type = PPS_MIN_UPDATE;
-            send = true;
-        }
+        return;
     }
 
-    if (current > _pps_timer_max)
+    if (_pps_last < _pps_timer_min)
     {
-        _pps_timer_max = current;
-        msg.type = PPS_MAX_UPDATE;
-        send = true;
+        _pps_timer_min = _pps_last;
     }
 
-    if (send)
+    if (_pps_last > _pps_timer_max)
     {
-        BaseType_t yield = pdFALSE;
-        xQueueSendFromISR(_pps_event_queue, &msg, &yield);
-        if (yield)
-        {
-            portYIELD_FROM_ISR();
-        }
+        _pps_timer_max = _pps_last;
     }
 }
 
@@ -583,56 +568,10 @@ void IRAM_ATTR GPS::timeout()
     TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
     TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
     timer_group_enable_alarm_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
-
-    pps_event_msg_t msg {.type=PPS_MISSED, .value=0};
-    BaseType_t yield = pdFALSE;
-    xQueueSendFromISR(_pps_event_queue, &msg, &yield);
-    if (yield)
-    {
-        portYIELD_FROM_ISR();
-    }
 }
 
 void IRAM_ATTR GPS::timeoutISR(void* data)
 {
     GPS* gps = (GPS*)data;
     gps->timeout();
-}
-
-void GPS::ppsEventLogger(void*data)
-{
-    GPS* gps = (GPS*)data;
-    pps_event_msg_t event;
-    while(true)
-    {
-        if(xQueueReceive(gps->_pps_event_queue, (void * )&event, (portTickType)portMAX_DELAY) != pdTRUE)
-        {
-            ESP_LOGE(TAG, "failed to recieve gps event from uart event queue!");
-            continue;
-        }
-        const char* event_name = "<UNKNOWN>";
-        switch (event.type)
-        {
-        case PPS_MISSED:
-            event_name = "MISSED";
-            break;
-
-        case PPS_SHORT:
-            event_name = "SHORT";
-            break;
-
-        case PPS_MIN_UPDATE:
-            event_name = "MIN";
-            break;
-
-        case PPS_MAX_UPDATE:
-            event_name = "MAX";
-            break;
-
-        default:
-            break;
-        }
-
-        ESP_LOGW(TAG, "::ppsEventLogger %s:%07u tracked:%d quality:%d", event_name, event.value, gps->_sats_tracked, gps->_fix_quality);
-    }
 }

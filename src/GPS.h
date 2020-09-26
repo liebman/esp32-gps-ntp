@@ -37,6 +37,7 @@ public:
     uint32_t getPPSTimerMin();
     uint32_t getPPSMissed();
     uint32_t getPPSShort();
+    uint32_t getPPSLast();
 
 protected:
     gpio_num_t  _pps_pin;
@@ -64,25 +65,14 @@ protected:
     volatile uint32_t _pps_short      = 0;
     volatile uint32_t _pps_timer_max  = 0;
     volatile uint32_t _pps_timer_min  = 2000000;
+    volatile uint32_t _pps_last; // last pps in usecs even if short or timeout
     volatile time_t   _time; // unix seconds
 
     struct timespec _rmc_time;
     struct timespec _zda_time;
 
 private:
-    enum pps_event_t {
-        PPS_MISSED,
-        PPS_SHORT,
-        PPS_MAX_UPDATE,
-        PPS_MIN_UPDATE,
-    };
-    typedef struct pps_event_msg {
-        pps_event_t type;
-        uint32_t value;
-    } pps_event_msg_t;
-
     QueueHandle_t _event_queue;
-    QueueHandle_t _pps_event_queue;
     TaskHandle_t  _task;
     intr_handle_t _timer_int;
 
@@ -93,8 +83,6 @@ private:
     static void ppsISR(void* data);
     void   timeout();
     static void timeoutISR(void* data);
-
-    static void ppsEventLogger(void* data);
 };
 
 #endif // _LINE_READER_H
