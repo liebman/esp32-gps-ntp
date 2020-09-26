@@ -58,11 +58,13 @@ protected:
     float       _latitude;
     float       _longitude;
     char        _psti[81];
+
     volatile uint32_t _pps_count      = 0;
     volatile uint32_t _pps_missed     = 0;
     volatile uint32_t _pps_short      = 0;
     volatile uint32_t _pps_timer_max  = 0;
     volatile uint32_t _pps_timer_min  = 2000000;
+    volatile time_t   _time; // unix seconds
 
     struct timespec _rmc_time;
     struct timespec _zda_time;
