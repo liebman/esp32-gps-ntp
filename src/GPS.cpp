@@ -527,12 +527,11 @@ void IRAM_ATTR GPS::pps()
     TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
     TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
     ++_pps_count;
-    ++_time;
 
     bool send = false;
     pps_event_msg_t msg {.type=PPS_SHORT, .value=(uint32_t)current};
 
-    if (current < 999000)
+    if (current < 900000)
     {
         ++_pps_short;
         msg.type = PPS_SHORT;
@@ -540,6 +539,9 @@ void IRAM_ATTR GPS::pps()
     }
     else
     {
+        // only increment time if we are not on a short pps interrupt
+        ++_time;
+
         if (current < _pps_timer_min)
         {
             _pps_timer_min = current;

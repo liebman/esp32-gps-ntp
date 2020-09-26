@@ -1,0 +1,29 @@
+menu "GPS NTP Server"
+
+    choice GPSNTP_GPS_TYPE
+
+        prompt "Select GPS type"
+        default GPSNTP_GPS_TYPE_GENERIC
+        help
+            Select theme default primary color.
+
+        config GPSNTP_GPS_TYPE_GENERIC
+            bool "GPS type is GENERIC"
+
+        config GPSNTP_GPS_TYPE_UBLOX6M
+            bool "GPS type is UBLOX 6M"
+
+        config GPSNTP_GPS_TYPE_SKYTRAQ
+            bool "GPS type is SKYTRAQ"
+
+        config GPSNTP_GPS_TYPE_MTK3339
+            bool "GPS type is MTK3339 (Adafruit Untimate GPS)"
+
+    endchoice
+
+    config GPSNTP_ENABLE_115220BAUD
+        depends on !GPSNTP_GPS_TYPE_GENERIC
+        bool "Enable 115200 baud"
+        default n
+
+endmenu
