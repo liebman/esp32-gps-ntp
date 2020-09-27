@@ -79,10 +79,8 @@ private:
     void process(char* sentence);
     void task();
     static void task(void* data);
-    void   pps();
-    static void ppsISR(void* data);
-    void   timeout();
-    static void timeoutISR(void* data);
+    static void pps(void* data);
+    static void timeout(void* data);
 };
 
 #endif // _LINE_READER_H

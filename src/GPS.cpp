@@ -73,7 +73,7 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     timer_set_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 0x00000000ULL);
     timer_set_alarm_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, PPS_MISS_VALUE);
     timer_enable_intr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
-    timer_isr_register(GPS_TIMER_GROUP, GPS_TIMER_NUM, timeoutISR,
+    timer_isr_register(GPS_TIMER_GROUP, GPS_TIMER_NUM, timeout,
                        (void *) this, ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_LEVEL6, NULL);
     timer_start(GPS_TIMER_GROUP, GPS_TIMER_NUM);
 
@@ -85,9 +85,10 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         ESP_LOGI(TAG, "::begin setup ppsISR");
         gpio_set_intr_type(_pps_pin, GPIO_INTR_POSEDGE);
         gpio_intr_enable(_pps_pin);
-        gpio_install_isr_service(0);
+
+        gpio_install_isr_service(ESP_INTR_FLAG_IRAM);
         //hook isr handler for specific gpio pin
-        gpio_isr_handler_add(_pps_pin, ppsISR, this);
+        gpio_isr_handler_add(_pps_pin, pps, this);
     }
 
     ESP_LOGI(TAG, "::begin configuring UART");
@@ -523,55 +524,45 @@ uint32_t GPS::getPPSLast()
     return _pps_last;
 }
 
-
-void IRAM_ATTR GPS::pps()
+void IRAM_ATTR GPS::pps(void* data)
 {
+    GPS* gps = (GPS*)data;
+
     uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
     // reset the timer
     GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].load_high = 0;
     GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].load_low  = 0;
     GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].reload = 1;
 
-    _pps_last = (uint32_t)current;
-    ++_pps_count;
-    ++_time;
+    gps->_pps_last = (uint32_t)current;
+    gps->_pps_count += 1;
+    gps->_time      += 1;
 
-    if (_pps_last < PPS_SHORT_VALUE)
+    if (gps->_pps_last < PPS_SHORT_VALUE)
     {
-        ++_pps_short;
+        gps->_pps_short += 1;
         return;
     }
 
-    if (_pps_last < _pps_timer_min)
+    if (gps->_pps_last < gps->_pps_timer_min)
     {
-        _pps_timer_min = _pps_last;
+        gps->_pps_timer_min = gps->_pps_last;
     }
 
-    if (_pps_last > _pps_timer_max)
+    if (gps->_pps_last > gps->_pps_timer_max)
     {
-        _pps_timer_max = _pps_last;
+        gps->_pps_timer_max = gps->_pps_last;
     }
 }
 
-void IRAM_ATTR GPS::ppsISR(void* data)
+void IRAM_ATTR GPS::timeout(void* data)
 {
     GPS* gps = (GPS*)data;
-    gps->pps();
-}
-
-void IRAM_ATTR GPS::timeout()
-{
-    ++_pps_missed;
-    _pps_timer_max = 0;
+    gps->_pps_missed += 1;
+    gps->_pps_timer_max = 0;
     timer_group_clr_intr_status_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
     TIMERG0.hw_timer[GPS_TIMER_NUM].load_high = 0;
     TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
     TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
     timer_group_enable_alarm_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
-}
-
-void IRAM_ATTR GPS::timeoutISR(void* data)
-{
-    GPS* gps = (GPS*)data;
-    gps->timeout();
 }
