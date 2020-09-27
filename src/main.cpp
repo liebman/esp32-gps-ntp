@@ -7,6 +7,7 @@
 #include "MCP23017.h"
 #include "GPS.h"
 #include "PageGPS.h"
+#include "PageSats.h"
 #include "PageAbout.h"
 
 #ifdef __cplusplus
@@ -79,14 +80,13 @@ void app_main()
     }
 
     new PageGPS(gps);
+    new PageSats(gps);
     new PageAbout();
 
-#if 1
     // turn the backlight on.
     ESP_LOGI(TAG,  "turning backlight on");
     mcp23017.portMode(MCP23017::B, 0, TM_BACKLIGHT_BIT);
     mcp23017.portWrite(MCP23017::B, TM_BACKLIGHT_BIT, TM_BACKLIGHT_BIT);
-#endif
 
     if (!gps.begin(GPS_TX_PIN, GPS_RX_PIN))
     {
