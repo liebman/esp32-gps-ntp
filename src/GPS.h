@@ -7,7 +7,7 @@
 #include "driver/gpio.h"
 #include "driver/timer.h"
 #include "minmea.h"
-
+#include <functional>
 
 class GPS
 {
@@ -38,6 +38,7 @@ public:
     uint32_t getPPSMissed();
     uint32_t getPPSShort();
     uint32_t getPPSLast();
+    void setTime(std::function<void(time_t time)>);
 
 protected:
     gpio_num_t  _pps_pin;
@@ -67,6 +68,7 @@ protected:
     volatile uint32_t _pps_timer_min  = 2000000;
     volatile uint32_t _pps_last; // last pps in usecs even if short or timeout
     volatile time_t   _time; // unix seconds
+    volatile bool     _set_time;
 
     struct timespec _rmc_time;
     struct timespec _zda_time;
@@ -81,6 +83,10 @@ private:
     static void task(void* data);
     static void pps(void* data);
     static void timeout(void* data);
+
+    TaskHandle_t  _pps_task;
+    static void ppsTask(void* data);
+    std::function<void(time_t time)> _set_time_func;
 };
 
 #endif // _LINE_READER_H

@@ -4,6 +4,7 @@
 
 #include "Display.h"
 #include "GPS.h"
+#include "DS3231.h"
 #include "PageGPS.h"
 #include "PageSats.h"
 #include "PageAbout.h"
@@ -29,6 +30,17 @@ extern "C" {
 
 static const char* TAG = "app_main";
 static GPS gps(GPS_PPS_PIN);
+static DS3231 rtc;
+
+void setTime(time_t time)
+{
+    struct tm* tm = gmtime(&time);
+    if (!rtc.setTime(tm))
+    {
+        ESP_LOGE(TAG, "setTime: failed to set time for DS3231");
+    }
+    ESP_LOGI(TAG, "setTime: success setting time!");
+}
 
 void app_main() 
 {
@@ -81,11 +93,15 @@ void app_main()
     // turn the backlight on.
     gpio_set_level(TFT_LED_PIN, 1);
 
+    // initialize the DS3231 RTC
+    rtc.begin();
+
     // swap rx/tx as GPS_RX is our TX!
     if (!gps.begin(GPS_RX_PIN, GPS_TX_PIN))
     {
         ESP_LOGE(TAG, "failed to start gps!");
     }
+    gps.setTime(&setTime);
 
     // lets monitor the touch input.
     io_conf.pin_bit_mask = TCH_IRQ_SEL;
@@ -96,10 +112,20 @@ void app_main()
     err = gpio_config(&io_conf);
 
     time_t last_touch = time(nullptr);
+    time_t last_time = last_touch;
+
     bool is_on = true;
     while(true)
     {
         time_t now = time(nullptr);
+
+        // detect time jump when time is set.
+        if (now - last_time > 300)
+        {
+            last_touch = now;
+        } 
+        last_time = now;
+
         if (gpio_get_level(TCH_IRQ_PIN) == 0)
         {
             last_touch = now;

@@ -7,8 +7,16 @@
 
 static const char* TAG = "GPS";
 
+#ifndef PPS_TASK_PRI
+#define PPS_TASK_PRI configMAX_PRIORITIES-1
+#endif
+
+#ifndef PPS_TASK_CORE
+#define PPS_TASK_CORE 1
+#endif
+
 #ifndef GPS_TASK_PRI
-#define GPS_TASK_PRI configMAX_PRIORITIES-1
+#define GPS_TASK_PRI configMAX_PRIORITIES-2
 #endif
 
 #ifndef GPS_TASK_CORE
@@ -163,7 +171,15 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     ESP_LOGI(TAG, "::begin create GPS task at priority %d core %d", GPS_TASK_PRI, GPS_TASK_CORE);
     xTaskCreatePinnedToCore(task, "GPS", 4096, this, GPS_TASK_PRI, &_task, GPS_TASK_CORE);
 
+    ESP_LOGI(TAG, "::begin create PPS task at priority %d core %d", PPS_TASK_PRI, PPS_TASK_CORE);
+    xTaskCreatePinnedToCore(ppsTask, "PPS", 4096, this, PPS_TASK_PRI, &_pps_task, PPS_TASK_CORE);
+
     return true;
+}
+
+void GPS::setTime(std::function<void(time_t time)> func)
+{
+    _set_time_func = func;
 }
 
 // from GSV
@@ -271,6 +287,7 @@ void GPS::process(char* sentence)
                 tv.tv_sec = _time;
                 tv.tv_usec = usecs;
                 settimeofday(&tv, nullptr);
+                _set_time = true;
             }
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
@@ -524,6 +541,33 @@ uint32_t GPS::getPPSLast()
     return _pps_last;
 }
 
+void GPS::ppsTask(void* data)
+{
+    GPS* gps = (GPS*)data;
+    uint64_t value;
+
+    ESP_LOGI(TAG, "::ppsTask - starting!");
+
+    while (true)
+    {
+        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10000)))
+        {
+            if (gps->_set_time && gps->_set_time_func)
+            {
+                gps->_set_time_func(gps->_time);
+                gps->_set_time = false;
+            }
+            esp_err_t err = timer_get_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, &value);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "::ppsTask timer_get_counter_value failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
+                continue;
+            }
+            ESP_LOGV(TAG, "ppsTask: notify delay %u us", (uint32_t)value);
+        }
+    }
+}
+
 void IRAM_ATTR GPS::pps(void* data)
 {
     GPS* gps = (GPS*)data;
@@ -552,6 +596,13 @@ void IRAM_ATTR GPS::pps(void* data)
     if (gps->_pps_last > gps->_pps_timer_max)
     {
         gps->_pps_timer_max = gps->_pps_last;
+    }
+
+    BaseType_t hpwake;
+    vTaskNotifyGiveFromISR(gps->_pps_task, &hpwake);
+    if (hpwake)
+    {
+        portYIELD_FROM_ISR();
     }
 }
 
