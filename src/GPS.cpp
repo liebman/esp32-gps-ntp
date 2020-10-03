@@ -82,7 +82,7 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     timer_set_alarm_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, PPS_MISS_VALUE);
     timer_enable_intr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
     timer_isr_register(GPS_TIMER_GROUP, GPS_TIMER_NUM, timeout,
-                       (void *) this, ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_LEVEL6, NULL);
+                       (void *) this, ESP_INTR_FLAG_IRAM, NULL);
     timer_start(GPS_TIMER_GROUP, GPS_TIMER_NUM);
 
     if (_pps_pin != GPIO_NUM_NC)
