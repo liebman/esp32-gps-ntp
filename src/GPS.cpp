@@ -101,10 +101,6 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
 
 #ifdef PPS_LATENCY_PIN
         ESP_LOGI(TAG, "::begin configuring PPS_LATENCY_PIN pin %d", PPS_LATENCY_PIN);
-#if 0
-        gpio_set_direction(PPS_LATENCY_PIN, GPIO_MODE_OUTPUT);
-        gpio_set_level(PPS_LATENCY_PIN, 0);
-#endif
         gpio_config_t io_conf;
         io_conf.pin_bit_mask = PPS_LATENCY_SEL;
         io_conf.mode = GPIO_MODE_OUTPUT;
