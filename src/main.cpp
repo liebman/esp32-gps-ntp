@@ -32,14 +32,32 @@ static const char* TAG = "app_main";
 static GPS gps(GPS_PPS_PIN);
 static DS3231 rtc;
 
-void setTime(time_t time)
+void IRAM_ATTR setTime(time_t xtime)
 {
-    struct tm* tm = gmtime(&time);
+    // TODO: this is really messed up, I still get delay too long on teh first set. with value = 0 :-(
+
+    uint32_t current = gps.getMicroSeconds();
+    uint32_t target = 999900; //1000000 - current; // - 200;
+    uint32_t value;
+    uint32_t loops = 0;
+    do {
+        value = gps.getMicroSeconds();
+        ++loops;
+    } while (value < target && value >= current); // busy wait for microseconds!
+
+    time_t now = gps.getTime();
+
+    struct tm* tm = gmtime(&now);
     if (!rtc.setTime(tm))
     {
         ESP_LOGE(TAG, "setTime: failed to set time for DS3231");
     }
-    ESP_LOGI(TAG, "setTime: success setting time!");
+    if (now != xtime)
+    {
+        ESP_LOGW(TAG, "setTime: delay too long! Time changed! %ld!= %ld", gps.getTime(), xtime);
+    }
+    ESP_LOGI(TAG, "setTime: success setting time, microsecond value=%u loops=%u!", value, loops);
+    ESP_LOGI(TAG, "setTime: with current=%u target=%u", current, target);
 }
 
 void app_main() 

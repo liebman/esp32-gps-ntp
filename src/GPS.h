@@ -9,6 +9,12 @@
 #include "minmea.h"
 #include <functional>
 
+#define RTC_PPS_PIN (GPIO_NUM_27)
+#ifdef PPS_LATENCY_OUTPUT
+#define PPS_LATENCY_PIN (GPIO_NUM_2)
+#define PPS_LATENCY_SEL (GPIO_SEL_2)
+#endif
+
 class GPS
 {
     
@@ -39,6 +45,11 @@ public:
     uint32_t getPPSShort();
     uint32_t getPPSLast();
     void setTime(std::function<void(time_t time)>);
+    uint32_t getMicroSeconds();
+    time_t getTime();
+#ifdef RTC_PPS_PIN
+    uint32_t getRTCDelta();
+#endif
 
 protected:
     gpio_num_t  _pps_pin;
@@ -69,6 +80,7 @@ protected:
     volatile uint32_t _pps_last; // last pps in usecs even if short or timeout
     volatile time_t   _time; // unix seconds
     volatile bool     _set_time;
+    std::function<void(time_t time)> _set_time_func;
 
     struct timespec _rmc_time;
     struct timespec _zda_time;
@@ -84,9 +96,15 @@ private:
     static void pps(void* data);
     static void timeout(void* data);
 
+#ifdef RTC_PPS_PIN
+    volatile uint32_t _rtc_delta = 0;
+    static void rtcpps(void* data);
+#endif
+
+#if 0
     TaskHandle_t  _pps_task;
     static void ppsTask(void* data);
-    std::function<void(time_t time)> _set_time_func;
+#endif
 };
 
 #endif // _LINE_READER_H

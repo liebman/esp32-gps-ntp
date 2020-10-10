@@ -43,10 +43,12 @@ bool DS3231::begin()
     ESP_LOGI(TAG, "year:    0x%02x", data[YEAR]);
     ESP_LOGI(TAG, "control: 0x%02x", data[CONTROL]);
     ESP_LOGI(TAG, "status:  0x%02x", data[STATUS]);
+    ESP_LOGI(TAG, "aging:   %d",     (int8_t)data[AGEOFFSET]);
 
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
     updateReg(HOURS, 0, DS3231_12HR);
+    writeReg(AGEOFFSET, 20);
     return true;
 }
 

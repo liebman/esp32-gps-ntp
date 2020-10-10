@@ -52,7 +52,7 @@ void PageGPS::task(lv_task_t *task)
 
 void PageGPS::update()
 {
-    char buf[80];
+    char buf[120];
     snprintf(buf, sizeof(buf)-1, "Sats: %d tracked: %d", _gps.getSatsTotal(), _gps.getSatsTracked());
     _sats->setText(buf);
 
@@ -75,11 +75,20 @@ void PageGPS::update()
     }
     _rmc_time->setText(buf);
 
+#ifdef RTC_PPS_PIN
+    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin=%f\nmax=%f\nlast=%f\ndelta=%f",
+                                 _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),
+                                (double)_gps.getPPSTimerMin()/1000000.0,
+                                (double)_gps.getPPSTimerMax()/1000000.0,
+                                (double)_gps.getPPSLast()/1000000.0,
+                                (double)_gps.getRTCDelta()/1000000.0);
+#else
     snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin=%f\nmax=%f\nlast=%f",
                                  _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),
                                 (double)_gps.getPPSTimerMin()/1000000.0,
                                 (double)_gps.getPPSTimerMax()/1000000.0,
                                 (double)_gps.getPPSLast()/1000000.0);
+#endif
     _pps->setText(buf);
 
     _psti->setText(_gps.getPSTI());
