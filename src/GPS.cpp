@@ -24,24 +24,6 @@ static const char* TAG = "GPS";
 #define GPS_TASK_CORE 1
 #endif
 
-#if defined(CONFIG_GPSNTP_MICROSECOND_TIMER_GROUP_0)
-#define GPS_TIMER_GROUP TIMER_GROUP_0
-#define GPS_TIME_GROUP_VAR TIMERG0
-#elif defined(CONFIG_GPSNTP_MICROSECOND_TIMER_GROUP_1)
-#define GPS_TIMER_GROUP TIMER_GROUP_1
-#define GPS_TIME_GROUP_VAR TIMERG1
-#else
-#error "no GPSNTP_MICROSECOND_TIMER_GROUP_* selected"
-#endif
-
-#if defined(CONFIG_GPSNTP_MICROSECOND_TIMER_0)
-#define GPS_TIMER_NUM TIMER_0
-#elif defined(CONFIG_GPSNTP_MICROSECOND_TIMER_1)
-#define GPS_TIMER_NUM TIMER_1
-#else
-#error "no GPSNTP_MICROSECOND_TIMER_* selected"
-#endif
-
 #define PPS_SHORT_VALUE  999500
 #define PPS_MISS_VALUE  1000500 // 500 usec max
 
@@ -57,8 +39,9 @@ typedef union {
 } minmea_record_t;
 
 
-GPS::GPS(gpio_num_t pps_pin, uart_port_t uart_id, size_t buffer_size)
-: _pps_pin(pps_pin),
+GPS::GPS(MicroSecondTimer& timer, gpio_num_t pps_pin, uart_port_t uart_id, size_t buffer_size)
+: _timer(timer),
+  _pps_pin(pps_pin),
   _uart_id(uart_id),
   _buffer_size(buffer_size)
 {
@@ -74,26 +57,10 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
         return false;
     }
 
-    ESP_LOGI(TAG, "::begin configuring and starting timer");
-    timer_config_t tc = {
-        .alarm_en    = TIMER_ALARM_EN,
-        .counter_en  = TIMER_PAUSE,
-        .intr_type   = TIMER_INTR_LEVEL,
-        .counter_dir = TIMER_COUNT_UP,
-        .auto_reload = TIMER_AUTORELOAD_DIS,
-        .divider     = 80,  // microseconds second
-    };
-    esp_err_t err = timer_init(GPS_TIMER_GROUP, GPS_TIMER_NUM, &tc);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "::begin timer_init failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
-    }
-    timer_set_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 0x00000000ULL);
-    timer_set_alarm_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, PPS_MISS_VALUE);
-    timer_enable_intr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
-    timer_isr_register(GPS_TIMER_GROUP, GPS_TIMER_NUM, timeout,
-                       (void *) this, ESP_INTR_FLAG_IRAM, NULL);
-    timer_start(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+    ESP_LOGI(TAG, "::begin set timeout timeout callback");
+    _timer.setTimeoutCB(&timeout, (void*)this);
+
+    esp_err_t err = ESP_OK;
 
     if (_pps_pin != GPIO_NUM_NC)
     {
@@ -320,11 +287,8 @@ void GPS::process(char* sentence)
                 ESP_LOGE(TAG, "setting time from RMC (time:%ld != rmc:%ld)", _time, _rmc_time.tv_sec);
                 _time = _rmc_time.tv_sec;
                 struct timeval tv;
-                uint64_t usecs;
-                timer_set_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, 0x00000000ULL);
-                timer_get_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, &usecs);
                 tv.tv_sec = _time;
-                tv.tv_usec = usecs;
+                tv.tv_usec = _timer.getValue();;
                 settimeofday(&tv, nullptr);
                 _set_time = true;
             }
@@ -595,17 +559,7 @@ uint32_t IRAM_ATTR GPS::getMicroSeconds()
 {
     // needs to be fast. I dont think concurancy will be an issue as
     // we only use the lower 32 bits!
-    GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].update = 1;
-    return GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].cnt_low;
-#if 0
-    uint64_t value = 0;
-    esp_err_t err = timer_get_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, &value);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "::ppsTask timer_get_counter_value failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
-    }
-    return value;
-#endif
+    return _timer.getValue();
 }
 
 #if 0
@@ -644,13 +598,10 @@ void IRAM_ATTR GPS::pps(void* data)
 #endif
     GPS* gps = (GPS*)data;
 
-    uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
-    // reset the timer
-    GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].load_high = 0;
-    GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].load_low  = 0;
-    GPS_TIME_GROUP_VAR.hw_timer[GPS_TIMER_NUM].reload = 1;
+    uint32_t current = gps->_timer.getValue();
+    gps->_timer.reset();
 
-    gps->_pps_last = (uint32_t)current;
+    gps->_pps_last = current;
     gps->_pps_count += 1;
     gps->_time      += 1;
 
@@ -698,9 +649,9 @@ void IRAM_ATTR GPS::rtcpps(void* data)
 #endif
     GPS* gps = (GPS*)data;
 
-    uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
+    uint64_t current = gps->_timer.getValue();
 
-    gps->_rtc_delta = (uint32_t)current;
+    gps->_rtc_delta = current;
 #if 1
     // if we have drifted too far off the mark then sync it with a set time.
     if (current < PPS_SHORT_VALUE && current > (PPS_MISS_VALUE-1000000))
@@ -719,9 +670,4 @@ void IRAM_ATTR GPS::timeout(void* data)
     GPS* gps = (GPS*)data;
     gps->_pps_missed += 1;
     gps->_pps_timer_max = 0;
-    timer_group_clr_intr_status_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
-    TIMERG0.hw_timer[GPS_TIMER_NUM].load_high = 0;
-    TIMERG0.hw_timer[GPS_TIMER_NUM].load_low  = 0;
-    TIMERG0.hw_timer[GPS_TIMER_NUM].reload = 1;
-    timer_group_enable_alarm_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
 }

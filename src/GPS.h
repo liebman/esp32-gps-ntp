@@ -8,6 +8,7 @@
 #include "driver/timer.h"
 #include "minmea.h"
 #include <functional>
+#include "MicroSecondTimer.h"
 
 #define RTC_PPS_PIN (GPIO_NUM_27)
 #ifdef PPS_LATENCY_OUTPUT
@@ -19,7 +20,7 @@ class GPS
 {
     
 public:
-    GPS(gpio_num_t pps_pin = GPIO_NUM_NC, uart_port_t uart_id = UART_NUM_1, size_t buffer_size = 2048);
+    GPS(MicroSecondTimer& timer, gpio_num_t pps_pin = GPIO_NUM_NC, uart_port_t uart_id = UART_NUM_1, size_t buffer_size = 2048);
     bool  begin(gpio_num_t tx_pin, gpio_num_t rx_pin);
     // from GSV
     int   getSatsTotal();
@@ -52,6 +53,7 @@ public:
 #endif
 
 protected:
+    MicroSecondTimer& _timer;
     gpio_num_t  _pps_pin;
     uart_port_t _uart_id;
     size_t      _buffer_size;

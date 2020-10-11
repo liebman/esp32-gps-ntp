@@ -3,6 +3,7 @@
 #include "esp_log.h"
 
 #include "Display.h"
+#include "MicroSecondTimer.h"
 #include "GPS.h"
 #include "DS3231.h"
 #include "PageGPS.h"
@@ -29,7 +30,8 @@ extern "C" {
 #define TFT_LED_SEL (GPIO_SEL_4)
 
 static const char* TAG = "app_main";
-static GPS gps(GPS_PPS_PIN);
+static MicroSecondTimer ust;
+static GPS gps(ust, GPS_PPS_PIN);
 static DS3231 rtc;
 
 void IRAM_ATTR setTime(time_t xtime)
