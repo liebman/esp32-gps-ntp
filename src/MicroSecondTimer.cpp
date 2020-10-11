@@ -3,12 +3,15 @@
 
 static const char* TAG = "TIMER";
 
-#define MICRO_SECOND_SHORT_VALUE  999500
+#if defined(CONFIG_GPSNTP_MISS_TIME)
+#define MICRO_SECOND_MAX_VALUE CONFIG_GPSNTP_MISS_TIME
+#else
 #define MICRO_SECOND_MISS_VALUE  1000500 // 500 usec max
+#endif
 
 MicroSecondTimer::MicroSecondTimer()
 {
-    ESP_LOGI(TAG, "::begin configuring and starting timer");
+    ESP_LOGI(TAG, "::begin configuring and starting timer timeout=%u", MICRO_SECOND_MAX_VALUE);
     timer_config_t tc = {
         .alarm_en    = TIMER_ALARM_EN,
         .counter_en  = TIMER_PAUSE,
@@ -24,7 +27,7 @@ MicroSecondTimer::MicroSecondTimer()
                  MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, err, esp_err_to_name(err));
     }
     timer_set_counter_value(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, 0x00000000ULL);
-    timer_set_alarm_value(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, MICRO_SECOND_MISS_VALUE);
+    timer_set_alarm_value(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, MICRO_SECOND_MAX_VALUE);
     timer_enable_intr(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM);
     timer_isr_register(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, timeout,
                        (void *) this, ESP_INTR_FLAG_IRAM, NULL);

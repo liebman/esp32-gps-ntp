@@ -39,7 +39,7 @@ void IRAM_ATTR setTime(time_t xtime)
     // TODO: this is really messed up, I still get delay too long on teh first set. with value = 0 :-(
 
     uint32_t current = gps.getMicroSeconds();
-    uint32_t target = 999900; //1000000 - current; // - 200;
+    uint32_t target = 999737; //1000000 - current; // - 200;
     uint32_t value;
     uint32_t loops = 0;
     do {

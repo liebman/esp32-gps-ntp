@@ -24,8 +24,29 @@ static const char* TAG = "GPS";
 #define GPS_TASK_CORE 1
 #endif
 
+#if defined(CONFIG_GPSNTP_SHORT_TIME)
+#define PPS_SHORT_VALUE  CONFIG_GPSNTP_SHORT_TIME
+#else
 #define PPS_SHORT_VALUE  999500
+#endif
+
+#if defined(CONFIG_GPSNTP_MISS_TIME)
+#define PPS_MISS_VALUE CONFIG_GPSNTP_MISS_TIME
+#else
 #define PPS_MISS_VALUE  1000500 // 500 usec max
+#endif
+
+#if defined(CONFIG_GPSNTP_RTC_DRIFT_MAX)
+#define RTC_DRIFT_MAX CONFIG_GPSNTP_RTC_DRIFT_MAX
+#else
+#define RTC_DRIFT_MAX 500
+#endif
+
+#if defined(CONFIG_GPSNTP_RTC_DRIFT_MIN)
+#define RTC_DRIFT_MIN CONFIG_GPSNTP_RTC_DRIFT_MIN
+#else
+#define RTC_DRIFT_MIN 999500
+#endif
 
 typedef union {
     struct minmea_sentence_rmc rmc;
@@ -654,7 +675,7 @@ void IRAM_ATTR GPS::rtcpps(void* data)
     gps->_rtc_delta = current;
 #if 1
     // if we have drifted too far off the mark then sync it with a set time.
-    if (current < PPS_SHORT_VALUE && current > (PPS_MISS_VALUE-1000000))
+    if (current > RTC_DRIFT_MAX && current < RTC_DRIFT_MIN)
     {
         gps->_set_time = true;
     }
