@@ -1,11 +1,33 @@
 menu "GPS NTP Server"
 
+    choice GPSNTP_MICROSECOND_TIMER_GROUP
+        prompt "Select timergroup for microsecond timer"
+        default GPSNTP_MICROSECOND_TIMER_GROUP_0
+
+        config GPSNTP_MICROSECOND_TIMER_GROUP_0
+            bool "Timer Group 0"
+
+        config GPSNTP_MICROSECOND_TIMER_GROUP_1
+            bool "Timer Group 1"
+    endchoice
+
+    choice GPSNTP_MICROSECOND_TIMER
+        prompt "Select timer for microsecond timer"
+        default GPSNTP_MICROSECOND_TIMER_0
+
+        config GPSNTP_MICROSECOND_TIMER_0
+            bool "Timer 0"
+
+        config GPSNTP_MICROSECOND_TIMER_1
+            bool "Timer 1"
+    endchoice
+
     choice GPSNTP_GPS_TYPE
 
         prompt "Select GPS type"
         default GPSNTP_GPS_TYPE_GENERIC
         help
-            Select theme default primary color.
+            Select the GPS module type.
 
         config GPSNTP_GPS_TYPE_GENERIC
             bool "GPS type is GENERIC"

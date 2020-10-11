@@ -107,4 +107,4 @@ private:
 #endif
 };
 
-#endif // _LINE_READER_H
+#endif // _GPS_H

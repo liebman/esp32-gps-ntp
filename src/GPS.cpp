@@ -24,13 +24,22 @@ static const char* TAG = "GPS";
 #define GPS_TASK_CORE 1
 #endif
 
-#ifndef GPS_TIMER_GROUP
+#if defined(CONFIG_GPSNTP_MICROSECOND_TIMER_GROUP_0)
 #define GPS_TIMER_GROUP TIMER_GROUP_0
 #define GPS_TIME_GROUP_VAR TIMERG0
+#elif defined(CONFIG_GPSNTP_MICROSECOND_TIMER_GROUP_1)
+#define GPS_TIMER_GROUP TIMER_GROUP_1
+#define GPS_TIME_GROUP_VAR TIMERG1
+#else
+#error "no GPSNTP_MICROSECOND_TIMER_GROUP_* selected"
 #endif
 
-#ifndef GPS_TIMER_NUM
+#if defined(CONFIG_GPSNTP_MICROSECOND_TIMER_0)
+#define GPS_TIMER_NUM TIMER_0
+#elif defined(CONFIG_GPSNTP_MICROSECOND_TIMER_1)
 #define GPS_TIMER_NUM TIMER_1
+#else
+#error "no GPSNTP_MICROSECOND_TIMER_* selected"
 #endif
 
 #define PPS_SHORT_VALUE  999500
@@ -292,9 +301,6 @@ void GPS::process(char* sentence)
     switch (minmea_sentence_id(sentence, false))
     {
         case MINMEA_SENTENCE_RMC:
-#ifdef PPS_LATENCY_PIN
-            gpio_set_level(PPS_LATENCY_PIN, 0);
-#endif
             if (!minmea_parse_rmc(&data.rmc, sentence))
             {
                 ESP_LOGE(TAG, "$xxRMC sentence is not parsed");
@@ -673,6 +679,10 @@ void IRAM_ATTR GPS::pps(void* data)
         portYIELD_FROM_ISR();
     }
 #endif
+
+#ifdef PPS_LATENCY_PIN
+    gpio_set_level(PPS_LATENCY_PIN, 0);
+#endif
 }
 
 #ifdef RTC_PPS_PIN
@@ -683,6 +693,9 @@ uint32_t GPS::getRTCDelta()
 
 void IRAM_ATTR GPS::rtcpps(void* data)
 {
+#ifdef PPS_LATENCY_PIN
+    gpio_set_level(PPS_LATENCY_PIN, 1);
+#endif
     GPS* gps = (GPS*)data;
 
     uint64_t current = timer_group_get_counter_value_in_isr(GPS_TIMER_GROUP, GPS_TIMER_NUM);
@@ -694,6 +707,9 @@ void IRAM_ATTR GPS::rtcpps(void* data)
     {
         gps->_set_time = true;
     }
+#endif
+#ifdef PPS_LATENCY_PIN
+    gpio_set_level(PPS_LATENCY_PIN, 0);
 #endif
 }
 #endif
