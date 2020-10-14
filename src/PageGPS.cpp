@@ -76,12 +76,13 @@ void PageGPS::update()
     _rmc_time->setText(buf);
 
 #ifdef RTC_PPS_PIN
-    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin=%f\nmax=%f\nlast=%f\ndelta=%f",
+    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin=%f\nmax=%f\nlast=%f\ndelta=%f\nlastshort=%f",
                                  _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),
                                 (double)_gps.getPPSTimerMin()/1000000.0,
                                 (double)_gps.getPPSTimerMax()/1000000.0,
                                 (double)_gps.getPPSLast()/1000000.0,
-                                (double)_gps.getRTCDelta()/1000000.0);
+                                (double)_gps.getRTCDelta()/1000000.0,
+                                (double)_gps.getPPSShortLast()/1000000.0);
 #else
     snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin=%f\nmax=%f\nlast=%f",
                                  _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),

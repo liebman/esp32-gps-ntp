@@ -45,6 +45,7 @@ public:
     uint32_t getPPSMissed();
     uint32_t getPPSShort();
     uint32_t getPPSLast();
+    uint32_t getPPSShortLast();
     void setTime(std::function<void(time_t time)>);
     uint32_t getMicroSeconds();
     time_t getTime();
@@ -77,6 +78,7 @@ protected:
     volatile uint32_t _pps_count      = 0;
     volatile uint32_t _pps_missed     = 0;
     volatile uint32_t _pps_short      = 0;
+    volatile uint32_t _pps_short_last = 0;
     volatile uint32_t _pps_timer_max  = 0;
     volatile uint32_t _pps_timer_min  = 2000000;
     volatile uint32_t _pps_last; // last pps in usecs even if short or timeout

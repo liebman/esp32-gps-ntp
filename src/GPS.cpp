@@ -566,6 +566,11 @@ uint32_t GPS::getPPSShort()
     return _pps_short;
 }
 
+uint32_t GPS::getPPSShortLast()
+{
+    return _pps_short_last;
+}
+
 uint32_t GPS::getPPSLast()
 {
     return _pps_last;
@@ -630,6 +635,10 @@ void IRAM_ATTR GPS::pps(void* data)
     if (gps->_pps_last < PPS_SHORT_VALUE)
     {
         gps->_pps_short += 1;
+        gps->_pps_short_last = current;
+#ifdef PPS_LATENCY_PIN
+        gpio_set_level(PPS_LATENCY_PIN, 0);
+#endif
         return;
     }
 
