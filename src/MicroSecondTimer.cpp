@@ -13,7 +13,7 @@ MicroSecondTimer::MicroSecondTimer()
 {
     ESP_LOGI(TAG, "::begin configuring and starting timer timeout=%u", MICRO_SECOND_MAX_VALUE);
     timer_config_t tc = {
-        .alarm_en    = TIMER_ALARM_EN,
+        .alarm_en    = TIMER_ALARM_DIS,
         .counter_en  = TIMER_PAUSE,
         .intr_type   = TIMER_INTR_LEVEL,
         .counter_dir = TIMER_COUNT_UP,
@@ -27,27 +27,5 @@ MicroSecondTimer::MicroSecondTimer()
                  MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, err, esp_err_to_name(err));
     }
     timer_set_counter_value(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, 0x00000000ULL);
-    timer_set_alarm_value(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, MICRO_SECOND_MAX_VALUE);
-    timer_enable_intr(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM);
-    timer_isr_register(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, timeout,
-                       (void *) this, ESP_INTR_FLAG_IRAM, NULL);
     timer_start(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM);
-}
-
-void MicroSecondTimer::setTimeoutCB(TimeoutCB cb, void* data)
-{
-    _timeout_data = data;
-    _timeout_cb = cb;
-}
-
-void IRAM_ATTR MicroSecondTimer::timeout(void* data)
-{
-    MicroSecondTimer* tmr = (MicroSecondTimer*)data;
-    if (tmr->_timeout_cb)
-    {
-        tmr->_timeout_cb(tmr->_timeout_data);
-    }
-    tmr->reset();
-    timer_group_clr_intr_status_in_isr(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM);
-    timer_group_enable_alarm_in_isr(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM);
 }

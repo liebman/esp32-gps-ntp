@@ -4,6 +4,7 @@
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 #include <sys/time.h>
+#include <soc/soc.h>
 
 static const char* TAG = "GPS";
 
@@ -60,10 +61,8 @@ typedef union {
 } minmea_record_t;
 
 
-GPS::GPS(MicroSecondTimer& timer, gpio_num_t pps_pin, uart_port_t uart_id, size_t buffer_size)
-: _timer(timer),
-  _pps_pin(pps_pin),
-  _uart_id(uart_id),
+GPS::GPS(uart_port_t uart_id, size_t buffer_size)
+: _uart_id(uart_id),
   _buffer_size(buffer_size)
 {
 }
@@ -76,52 +75,6 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     {
         ESP_LOGE(TAG, "::begin failed to allocate buffer!");
         return false;
-    }
-
-    ESP_LOGI(TAG, "::begin set timeout timeout callback");
-    _timer.setTimeoutCB(&timeout, (void*)this);
-
-    esp_err_t err = ESP_OK;
-
-    if (_pps_pin != GPIO_NUM_NC)
-    {
-        ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pps_pin);
-        gpio_set_direction(_pps_pin, GPIO_MODE_INPUT);
-        gpio_set_pull_mode(_pps_pin, GPIO_PULLUP_ONLY);
-        ESP_LOGI(TAG, "::begin setup ppsISR");
-        gpio_set_intr_type(_pps_pin, GPIO_INTR_POSEDGE);
-        gpio_intr_enable(_pps_pin);
-
-        gpio_install_isr_service(ESP_INTR_FLAG_IRAM);
-        //hook isr handler for specific gpio pin
-        gpio_isr_handler_add(_pps_pin, pps, this);
-
-#ifdef PPS_LATENCY_PIN
-        ESP_LOGI(TAG, "::begin configuring PPS_LATENCY_PIN pin %d", PPS_LATENCY_PIN);
-        gpio_config_t io_conf;
-        io_conf.pin_bit_mask = PPS_LATENCY_SEL;
-        io_conf.mode = GPIO_MODE_OUTPUT;
-        io_conf.intr_type = GPIO_INTR_DISABLE;
-        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-        err = gpio_config(&io_conf);
-        if (err != ESP_OK)
-        {
-            ESP_LOGE(TAG, "failed to init PPS_LATENCY_PIN pin as output: %d '%s'", err, esp_err_to_name(err));
-        }
-#endif
-
-#ifdef RTC_PPS_PIN
-        ESP_LOGI(TAG, "::begin configuring RTC_PPS pin %d", RTC_PPS_PIN);
-        gpio_set_direction(RTC_PPS_PIN, GPIO_MODE_INPUT);
-        gpio_set_pull_mode(RTC_PPS_PIN, GPIO_PULLUP_ONLY);
-        ESP_LOGI(TAG, "::begin setup rtsppsISR");
-        gpio_set_intr_type(RTC_PPS_PIN, GPIO_INTR_NEGEDGE);
-        gpio_intr_enable(RTC_PPS_PIN);
-        //hook isr handler for specific gpio pin
-        gpio_isr_handler_add(RTC_PPS_PIN, rtcpps, this);
-#endif
-
     }
 
     ESP_LOGI(TAG, "::begin configuring UART");
@@ -196,17 +149,7 @@ bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
     ESP_LOGI(TAG, "::begin create GPS task at priority %d core %d", GPS_TASK_PRI, GPS_TASK_CORE);
     xTaskCreatePinnedToCore(task, "GPS", 4096, this, GPS_TASK_PRI, &_task, GPS_TASK_CORE);
 
-#if 0
-    ESP_LOGI(TAG, "::begin create PPS task at priority %d core %d", PPS_TASK_PRI, PPS_TASK_CORE);
-    xTaskCreatePinnedToCore(ppsTask, "PPS", 4096, this, PPS_TASK_PRI, &_pps_task, PPS_TASK_CORE);
-#endif
-
     return true;
-}
-
-void GPS::setTime(std::function<void(time_t time)> func)
-{
-    _set_time_func = func;
 }
 
 // from GSV
@@ -303,23 +246,6 @@ void GPS::process(char* sentence)
                 ESP_LOGE(TAG, "::process RMC failed to convert date/time!");
             }
 
-            if (_valid && _rmc_time.tv_sec != 0 && _rmc_time.tv_sec != _time && _pps_count > 60)
-            {
-                ESP_LOGE(TAG, "setting time from RMC (time:%ld != rmc:%ld)", _time, _rmc_time.tv_sec);
-                _time = _rmc_time.tv_sec;
-                struct timeval tv;
-                tv.tv_sec = _time;
-                tv.tv_usec = _timer.getValue();;
-                settimeofday(&tv, nullptr);
-                _set_time = true;
-            }
-#if 1
-            if (_set_time && _set_time_func)
-            {
-                _set_time_func(_time);
-                _set_time = false;
-            }
-#endif
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
                     minmea_tocoord(&data.rmc.latitude),
                     minmea_tocoord(&data.rmc.longitude),
@@ -539,165 +465,4 @@ void GPS::task(void* data)
     ESP_LOGI(TAG, "::task - starting!");
     GPS* gps = (GPS*)data;
     gps->task();
-}
-
-uint32_t GPS::getPPSCount()
-{
-    return _pps_count;
-}
-
-uint32_t GPS::getPPSTimerMax()
-{
-    return _pps_timer_max;
-}
-
-uint32_t GPS::getPPSTimerMin()
-{
-    return _pps_timer_min;
-}
-
-uint32_t GPS::getPPSMissed()
-{
-    return _pps_missed;
-}
-
-uint32_t GPS::getPPSShort()
-{
-    return _pps_short;
-}
-
-uint32_t GPS::getPPSShortLast()
-{
-    return _pps_short_last;
-}
-
-uint32_t GPS::getPPSLast()
-{
-    return _pps_last;
-}
-
-time_t GPS::getTime()
-{
-    return _time;
-}
-
-uint32_t IRAM_ATTR GPS::getMicroSeconds()
-{
-    // needs to be fast. I dont think concurancy will be an issue as
-    // we only use the lower 32 bits!
-    return _timer.getValue();
-}
-
-#if 0
-void GPS::ppsTask(void* data)
-{
-    GPS* gps = (GPS*)data;
-    uint64_t value;
-
-    ESP_LOGI(TAG, "::ppsTask - starting!");
-
-    while (true)
-    {
-        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10000)))
-        {
-            if (gps->_set_time && gps->_set_time_func)
-            {
-                gps->_set_time_func(gps->_time);
-                gps->_set_time = false;
-            }
-            esp_err_t err = timer_get_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, &value);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "::ppsTask timer_get_counter_value failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
-                continue;
-            }
-            ESP_LOGV(TAG, "ppsTask: notify delay %u us", (uint32_t)value);
-        }
-    }
-}
-#endif
-
-void IRAM_ATTR GPS::pps(void* data)
-{
-#ifdef PPS_LATENCY_PIN
-    gpio_set_level(PPS_LATENCY_PIN, 1);
-#endif
-    GPS* gps = (GPS*)data;
-
-    uint32_t current = gps->_timer.getValue();
-    gps->_timer.reset();
-
-    gps->_pps_last = current;
-    gps->_pps_count += 1;
-    gps->_time      += 1;
-
-
-    if (gps->_pps_last < PPS_SHORT_VALUE)
-    {
-        gps->_pps_short += 1;
-        gps->_pps_short_last = current;
-#ifdef PPS_LATENCY_PIN
-        gpio_set_level(PPS_LATENCY_PIN, 0);
-#endif
-        return;
-    }
-
-    if (gps->_pps_last < gps->_pps_timer_min)
-    {
-        gps->_pps_timer_min = gps->_pps_last;
-    }
-
-    if (gps->_pps_last > gps->_pps_timer_max)
-    {
-        gps->_pps_timer_max = gps->_pps_last;
-    }
-
-#if 0
-    BaseType_t hpwake;
-    vTaskNotifyGiveFromISR(gps->_pps_task, &hpwake);
-    if (hpwake)
-    {
-        portYIELD_FROM_ISR();
-    }
-#endif
-
-#ifdef PPS_LATENCY_PIN
-    gpio_set_level(PPS_LATENCY_PIN, 0);
-#endif
-}
-
-#ifdef RTC_PPS_PIN
-uint32_t GPS::getRTCDelta()
-{
-    return _rtc_delta;
-}
-
-void IRAM_ATTR GPS::rtcpps(void* data)
-{
-#ifdef PPS_LATENCY_PIN
-    gpio_set_level(PPS_LATENCY_PIN, 1);
-#endif
-    GPS* gps = (GPS*)data;
-
-    uint64_t current = gps->_timer.getValue();
-
-    gps->_rtc_delta = current;
-#if 1
-    // if we have drifted too far off the mark then sync it with a set time.
-    if (current > RTC_DRIFT_MAX && current < RTC_DRIFT_MIN)
-    {
-        gps->_set_time = true;
-    }
-#endif
-#ifdef PPS_LATENCY_PIN
-    gpio_set_level(PPS_LATENCY_PIN, 0);
-#endif
-}
-#endif
-
-void IRAM_ATTR GPS::timeout(void* data)
-{
-    GPS* gps = (GPS*)data;
-    gps->_pps_missed += 1;
-    gps->_pps_timer_max = 0;
 }

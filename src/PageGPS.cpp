@@ -9,7 +9,8 @@
 
 static const char* TAG = "PageGPS";
 
-PageGPS::PageGPS(GPS& gps) : _gps(gps)
+PageGPS::PageGPS(GPS& gps, PPS& pps, PPS& rtcpps)
+: _gps(gps), _pps(pps), _rtcpps(rtcpps)
 {
     WithDisplayLock([this](){
         _container_style.setPadInner(LV_STATE_DEFAULT, LV_DPX(2));
@@ -32,7 +33,8 @@ PageGPS::PageGPS(GPS& gps) : _gps(gps)
         _sats     = new LVLabel(cont);
         _status   = new LVLabel(cont);
         _pos      = new LVLabel(cont);
-        _pps      = new LVLabel(cont);
+        _ppsl     = new LVLabel(cont);
+        _rtcppsl  = new LVLabel(cont);
         _psti     = new LVLabel(cont);
     
         ESP_LOGI(TAG, "creating task");
@@ -52,7 +54,7 @@ void PageGPS::task(lv_task_t *task)
 
 void PageGPS::update()
 {
-    char buf[120];
+    static char buf[2048];
     snprintf(buf, sizeof(buf)-1, "Sats: %d tracked: %d", _gps.getSatsTotal(), _gps.getSatsTracked());
     _sats->setText(buf);
 
@@ -75,22 +77,19 @@ void PageGPS::update()
     }
     _rmc_time->setText(buf);
 
-#ifdef RTC_PPS_PIN
-    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin=%f\nmax=%f\nlast=%f\ndelta=%f\nlastshort=%f",
-                                 _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),
-                                (double)_gps.getPPSTimerMin()/1000000.0,
-                                (double)_gps.getPPSTimerMax()/1000000.0,
-                                (double)_gps.getPPSLast()/1000000.0,
-                                (double)_gps.getRTCDelta()/1000000.0,
-                                (double)_gps.getPPSShortLast()/1000000.0);
-#else
-    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin=%f\nmax=%f\nlast=%f",
-                                 _gps.getPPSCount(), _gps.getPPSMissed(), _gps.getPPSShort(),
-                                (double)_gps.getPPSTimerMin()/1000000.0,
-                                (double)_gps.getPPSTimerMax()/1000000.0,
-                                (double)_gps.getPPSLast()/1000000.0);
-#endif
-    _pps->setText(buf);
+    snprintf(buf, sizeof(buf)-1, "PPS: %u missed=%d short=%u\nmin/max/lst=%07u/%07u/%07u",
+                                 _pps.getCount(), _pps.getMissed(), _pps.getShort(),
+                                _pps.getTimerMin(),
+                                _pps.getTimerMax(),
+                                _pps.getLast());
+    _ppsl->setText(buf);
+
+    snprintf(buf, sizeof(buf)-1, "RTC: %u missed=%d short=%u\nmin/max/lst=%07u/%07u/%07u",
+                                 _rtcpps.getCount(), _rtcpps.getMissed(), _rtcpps.getShort(),
+                                _rtcpps.getTimerMin(),
+                                _rtcpps.getTimerMax(),
+                                _rtcpps.getLast());
+    _rtcppsl->setText(buf);
 
     _psti->setText(_gps.getPSTI());
 }

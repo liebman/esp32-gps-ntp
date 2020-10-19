@@ -22,6 +22,7 @@ extern "C" {
 #define GPS_RX_PIN (GPIO_NUM_33)
 #define GPS_TX_PIN (GPIO_NUM_32)
 #define GPS_PPS_PIN (GPIO_NUM_26)
+#define RTC_PPS_PIN (GPIO_NUM_27)
 #define SDA_PIN (GPIO_NUM_16)
 #define SCL_PIN (GPIO_NUM_17)
 #define TCH_IRQ_PIN (GPIO_NUM_36)
@@ -31,36 +32,10 @@ extern "C" {
 
 static const char* TAG = "app_main";
 static MicroSecondTimer ust;
-static GPS gps(ust, GPS_PPS_PIN);
+static GPS gps;
+static PPS pps(ust, GPS_PPS_PIN);
 static DS3231 rtc;
-
-void IRAM_ATTR setTime(time_t xtime)
-{
-    // TODO: this is really messed up, I still get delay too long on teh first set. with value = 0 :-(
-
-    uint32_t current = gps.getMicroSeconds();
-    uint32_t target = 999737; //1000000 - current; // - 200;
-    uint32_t value;
-    uint32_t loops = 0;
-    do {
-        value = gps.getMicroSeconds();
-        ++loops;
-    } while (value < target && value >= current); // busy wait for microseconds!
-
-    time_t now = gps.getTime();
-
-    struct tm* tm = gmtime(&now);
-    if (!rtc.setTime(tm))
-    {
-        ESP_LOGE(TAG, "setTime: failed to set time for DS3231");
-    }
-    if (now != xtime)
-    {
-        ESP_LOGW(TAG, "setTime: delay too long! Time changed! %ld!= %ld", gps.getTime(), xtime);
-    }
-    ESP_LOGI(TAG, "setTime: success setting time, microsecond value=%u loops=%u!", value, loops);
-    ESP_LOGI(TAG, "setTime: with current=%u target=%u", current, target);
-}
+static PPS rtcpps(ust, RTC_PPS_PIN, true);
 
 void app_main() 
 {
@@ -92,7 +67,7 @@ void app_main()
         ESP_LOGE(TAG, "failed to initialize the Display!");
     }
 
-    new PageGPS(gps);
+    new PageGPS(gps, pps, rtcpps);
     new PageSats(gps);
     new PageAbout();
 
@@ -121,8 +96,17 @@ void app_main()
     {
         ESP_LOGE(TAG, "failed to start gps!");
     }
-    gps.setTime(&setTime);
 
+    if (!pps.begin())
+    {
+        ESP_LOGE(TAG, "failed to start pps!");
+    }
+#if 1
+    if (!rtcpps.begin())
+    {
+        ESP_LOGE(TAG, "failed to start rtcpps!");
+    }
+#endif
     // lets monitor the touch input.
     io_conf.pin_bit_mask = TCH_IRQ_SEL;
     io_conf.mode = GPIO_MODE_INPUT;

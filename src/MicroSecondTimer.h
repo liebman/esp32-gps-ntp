@@ -27,32 +27,19 @@
 class MicroSecondTimer
 {
 public:
-    using TimeoutCB = std::function<void(void*)>;
     MicroSecondTimer();
 
-    uint32_t inline IRAM_ATTR getValue()
+    uint64_t inline IRAM_ATTR getValueInISR()
     {
-        // needs to be fast. I dont think concurancy will be an issue as
-        // we only use the lower 32 bits!
-        MICRO_SECOND_TIMER_GROUP.hw_timer[MICRO_SECOND_TIMER_NUM].update = 1;
-        return MICRO_SECOND_TIMER_GROUP.hw_timer[MICRO_SECOND_TIMER_NUM].cnt_low;
+        return timer_group_get_counter_value_in_isr(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM);
     }
 
-    void inline IRAM_ATTR reset()
+    uint64_t inline IRAM_ATTR getValue()
     {
-        MICRO_SECOND_TIMER_GROUP.hw_timer[MICRO_SECOND_TIMER_NUM].load_high = 0;
-        MICRO_SECOND_TIMER_GROUP.hw_timer[MICRO_SECOND_TIMER_NUM].load_low  = 0;
-        MICRO_SECOND_TIMER_GROUP.hw_timer[MICRO_SECOND_TIMER_NUM].reload = 1;
+        uint64_t value;
+        timer_get_counter_value(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, &value);
+        return value;
     }
-
-    /*
-     * set the timeout call back, MUSH be in set IRAM_ATTR!
-    */
-    void setTimeoutCB(TimeoutCB cb, void* data);
-private:
-    TimeoutCB _timeout_cb;
-    void*     _timeout_data;
-    static void timeout(void* data);
 };
 
 #endif // __MICRO_SECOND_TIMER_H
