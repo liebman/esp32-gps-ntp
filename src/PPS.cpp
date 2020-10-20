@@ -67,7 +67,12 @@ bool PPS::begin()
         if (!isr_init)
         {
             isr_init = true;
-            gpio_install_isr_service(ESP_INTR_FLAG_IRAM);
+            esp_err_t err = gpio_install_isr_service(ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_LEVEL2);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "::begin failed to install gpio isr service: %d (%s)", err, esp_err_to_name(err));
+                return false;
+            }
         }
         ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pin);
         gpio_set_direction(_pin, GPIO_MODE_INPUT);
