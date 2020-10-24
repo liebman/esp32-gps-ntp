@@ -22,12 +22,11 @@ DS3231::~DS3231()
 {
 }
 
-bool DS3231::begin()
+bool DS3231::begin(PPS* pps)
 {
+    _pps = pps;
     _lock = xSemaphoreCreateBinary();
     xSemaphoreGive(_lock);
-//    ESP_LOGI(TAG, "2 second delay!");
-//    vTaskDelay(pdMS_TO_TICKS(2000));
     uint8_t data[REG_CNT];
     if (!read(SECONDS, REG_CNT, data))
     {
@@ -49,6 +48,12 @@ bool DS3231::begin()
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
     updateReg(HOURS, 0, DS3231_12HR);
     writeReg(AGEOFFSET, 20);
+    struct tm tm;
+    getTime(&tm);
+    if (_pps)
+    {
+        _pps->setTime(mktime(&tm));
+    }
     return true;
 }
 
@@ -88,6 +93,12 @@ bool DS3231::getTime(struct tm *time)
 bool DS3231::setTime(struct tm* time)
 {
     uint8_t data[7];
+
+    if (_pps)
+    {
+        _pps->setTime(mktime(time));
+        _pps->resetMicroseconds();
+    }
 
     /* time/date data */
     data[0] = dec2bcd(time->tm_sec);

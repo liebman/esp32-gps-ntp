@@ -67,8 +67,9 @@ GPS::GPS(uart_port_t uart_id, size_t buffer_size)
 {
 }
 
-bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
+bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin, PPS* pps)
 {
+    _pps = pps;
     ESP_LOGI(TAG, "::begin allocating uart buffer");
     _buffer = new char[_buffer_size];
     if (_buffer == nullptr)
@@ -243,7 +244,14 @@ void GPS::process(char* sentence)
             _longitude = minmea_tocoord(&data.rmc.longitude);
             if (minmea_gettime(&_rmc_time, &data.rmc.date, &data.rmc.time))
             {
+                _valid = false;
                 ESP_LOGE(TAG, "::process RMC failed to convert date/time!");
+            }
+
+            if (_valid && _pps != nullptr && _pps->getTime() != _rmc_time.tv_sec)
+            {
+                ESP_LOGW(TAG, "::process seting PPS time %ld", _rmc_time.tv_sec);
+                _pps->setTime(_rmc_time.tv_sec);
             }
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",

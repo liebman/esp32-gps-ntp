@@ -4,6 +4,7 @@
 #include <driver/i2c.h>
 #include <freertos/semphr.h>
 #include <time.h>
+#include "PPS.h"
 
 class DS3231
 {
@@ -18,7 +19,7 @@ public:
 
     DS3231(i2c_port_t i2c = I2C_NUM_0);
     virtual ~DS3231();
-    bool begin();
+    bool begin(PPS* pps = nullptr);
     
     bool getTime(struct tm* tm);
     bool setTime(struct tm* tm);
@@ -82,7 +83,7 @@ protected:
 private:
     i2c_port_t         _i2c;
     SemaphoreHandle_t  _lock = nullptr;
-
+    PPS*               _pps;
 };
 
 #endif // _DS3231_H

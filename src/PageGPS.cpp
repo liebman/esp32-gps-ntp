@@ -81,14 +81,16 @@ void PageGPS::update()
                                  _pps.getCount(), _pps.getMissed(), _pps.getShort(),
                                 _pps.getTimerMin(),
                                 _pps.getTimerMax(),
-                                _pps.getLast());
+                                _pps.getLast()
+                                );
     _ppsl->setText(buf);
 
-    snprintf(buf, sizeof(buf)-1, "RTC: %u missed=%d short=%u\nmin/max/lst=%07u/%07u/%07u",
+    snprintf(buf, sizeof(buf)-1, "RTC: %u missed=%d short=%u\nmin/max/lst=%07u/%07u/%07u\ndelta=%d",
                                  _rtcpps.getCount(), _rtcpps.getMissed(), _rtcpps.getShort(),
                                 _rtcpps.getTimerMin(),
                                 _rtcpps.getTimerMax(),
-                                _rtcpps.getLast());
+                                _rtcpps.getLast(),
+                                (int)(_rtcpps.getLastTimer()-_pps.getLastTimer()));
     _rtcppsl->setText(buf);
 
     _psti->setText(_gps.getPSTI());

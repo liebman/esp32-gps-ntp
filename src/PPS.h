@@ -19,6 +19,9 @@ public:
     PPS(MicroSecondTimer& timer, gpio_num_t pps_pin = GPIO_NUM_NC, bool expect_negedge = false);
     bool  begin();
     uint32_t getCount();
+    time_t   getTime(uint32_t* microseconds = nullptr);
+    void     setTime(time_t time);
+    uint64_t getLastTimer();
     uint32_t getTimerMax();
     uint32_t getTimerMin();
     uint32_t getMissed();
@@ -27,6 +30,7 @@ public:
     uint32_t getHighTime();
     uint32_t getLowTime();
     uint32_t getShortLast();
+    void     resetMicroseconds();
 #ifdef RTC_PPS_PIN
     uint32_t getRTCDelta();
 #endif

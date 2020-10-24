@@ -29,18 +29,6 @@ static const char* TAG = "PPS";
 #define PPS_MISS_VALUE  1000500 // 500 usec max
 #endif
 
-#if defined(CONFIG_GPSNTP_RTC_DRIFT_MAX)
-#define RTC_DRIFT_MAX CONFIG_GPSNTP_RTC_DRIFT_MAX
-#else
-#define RTC_DRIFT_MAX 500
-#endif
-
-#if defined(CONFIG_GPSNTP_RTC_DRIFT_MIN)
-#define RTC_DRIFT_MIN CONFIG_GPSNTP_RTC_DRIFT_MIN
-#else
-#define RTC_DRIFT_MIN 999500
-#endif
-
 
 PPS::PPS(MicroSecondTimer& timer, gpio_num_t pps_pin, bool expect_negedge)
 : _timer(timer),
@@ -64,26 +52,6 @@ bool PPS::begin()
 
     if (_pin != GPIO_NUM_NC)
     {
-        if (!isr_init)
-        {
-            isr_init = true;
-            esp_err_t err = gpio_install_isr_service(ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_LEVEL2);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "::begin failed to install gpio isr service: %d (%s)", err, esp_err_to_name(err));
-                return false;
-            }
-        }
-        ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pin);
-        gpio_set_direction(_pin, GPIO_MODE_INPUT);
-        gpio_set_pull_mode(_pin, GPIO_PULLUP_ONLY);
-        ESP_LOGI(TAG, "::begin setup ppsISR");
-        gpio_set_intr_type(_pin, GPIO_INTR_HIGH_LEVEL);
-        gpio_intr_enable(_pin);
-
-        //hook isr handler for specific gpio pin
-        gpio_isr_handler_add(_pin, pps, this);
-
 #ifdef PPS_LATENCY_PIN
         ESP_LOGI(TAG, "::begin configuring PPS_LATENCY_PIN pin %d", PPS_LATENCY_PIN);
         gpio_config_t io_conf;
@@ -98,6 +66,27 @@ bool PPS::begin()
             ESP_LOGE(TAG, "failed to init PPS_LATENCY_PIN pin as output: %d '%s'", err, esp_err_to_name(err));
         }
 #endif
+        if (!isr_init)
+        {
+            isr_init = true;
+            ESP_LOGI(TAG, "::begin installing gpio isr service!");
+            esp_err_t err = gpio_install_isr_service(ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_LEVEL2);
+            if (err != ESP_OK)
+            {
+                ESP_LOGE(TAG, "::begin failed to install gpio isr service: %d (%s)", err, esp_err_to_name(err));
+                return false;
+            }
+        }
+        ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pin);
+        gpio_set_direction(_pin, GPIO_MODE_INPUT);
+        gpio_set_pull_mode(_pin, GPIO_PULLUP_ONLY);
+        //hook isr handler for specific gpio pin
+        gpio_isr_handler_add(_pin, pps, this);
+        ESP_LOGI(TAG, "::begin setup ppsISR");
+        gpio_set_intr_type(_pin, GPIO_INTR_HIGH_LEVEL);
+        gpio_intr_enable(_pin);
+
+
     }
 
 #if 0
@@ -112,6 +101,50 @@ bool PPS::begin()
 uint32_t PPS::getCount()
 {
     return _count;
+}
+
+time_t PPS::getTime(uint32_t* microseconds)
+{
+    uint32_t count;
+    // edge case!  both seconds and _last_timer only change once a second, however,
+    // it changes via an interrupt so we make sure we have good values by making sure
+    // it is the same on second look
+    do
+    {
+        count = _count;
+        if (microseconds != nullptr)
+        {
+            *microseconds = _timer.getValue() - _last_timer;
+            // timer could be slightly off, insure microseconds is not returned as a full second!
+            if (*microseconds > 999999)
+            {
+                *microseconds = 999999;
+            }
+        }
+    } while (count != _count); // insure we stay on the same seconds (to go with the microseconds)
+
+    return (time_t)_count;
+}
+
+void PPS::setTime(time_t time)
+{
+    _count = (uint32_t)time;
+}
+
+uint64_t PPS::getLastTimer()
+{
+    uint64_t last = _last_timer;
+    if (last != _last_timer)
+    {
+        last = _last_timer;
+    }
+    return last;
+}
+
+void PPS::resetMicroseconds()
+{
+    // TODO: do I need a lock now?
+    _last_timer = _timer.getValue();
 }
 
 uint32_t PPS::getTimerMax()

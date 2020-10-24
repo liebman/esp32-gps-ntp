@@ -18,12 +18,6 @@ menu "GPS NTP Server"
         help
             Maximum drift for RTC pulse
 
-    config GPSNTP_RTC_DRIFT_MIN
-        int "Minimum drift for RTC pulse"
-        default 999500
-        help
-            Minimum drift for RTC pulse
-
     choice GPSNTP_MICROSECOND_TIMER_GROUP
         prompt "Select timergroup for microsecond timer"
         default GPSNTP_MICROSECOND_TIMER_GROUP_0
