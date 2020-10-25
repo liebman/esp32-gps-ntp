@@ -48,6 +48,14 @@ bool DS3231::begin(PPS* pps)
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
     updateReg(HOURS, 0, DS3231_12HR);
     writeReg(AGEOFFSET, 20);
+    // wait for the PPS signal to be low, the first half of a secondm, so we
+    // don't do this on a second boundry as the PPS could get or miss an increment.
+    ESP_LOGI(TAG, "::DS3231 wait for first half of second");
+    while (pps->getLevel() != 0)
+    {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    ESP_LOGI(TAG, "::DS3231 setting time on PPS");
     struct tm tm;
     getTime(&tm);
     if (_pps)

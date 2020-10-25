@@ -147,6 +147,11 @@ void PPS::resetMicroseconds()
     _last_timer = _timer.getValue();
 }
 
+int PPS::getLevel()
+{
+    return gpio_get_level(_pin);
+}
+
 uint32_t PPS::getTimerMax()
 {
     return _timer_max;

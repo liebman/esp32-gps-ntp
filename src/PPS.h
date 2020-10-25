@@ -21,6 +21,8 @@ public:
     uint32_t getCount();
     time_t   getTime(uint32_t* microseconds = nullptr);
     void     setTime(time_t time);
+    void     resetMicroseconds();
+    int      getLevel();
     uint64_t getLastTimer();
     uint32_t getTimerMax();
     uint32_t getTimerMin();
@@ -30,7 +32,7 @@ public:
     uint32_t getHighTime();
     uint32_t getLowTime();
     uint32_t getShortLast();
-    void     resetMicroseconds();
+
 #ifdef RTC_PPS_PIN
     uint32_t getRTCDelta();
 #endif
