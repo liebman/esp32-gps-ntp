@@ -1,4 +1,5 @@
 #include "DS3231.h"
+#include "LatencyPin.h"
 //#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include "esp_log.h"
 
@@ -47,7 +48,6 @@ bool DS3231::begin(PPS* pps)
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
     updateReg(HOURS, 0, DS3231_12HR);
-    writeReg(AGEOFFSET, 20);
     // wait for the PPS signal to be low, the first half of a secondm, so we
     // don't do this on a second boundry as the PPS could get or miss an increment.
     ESP_LOGI(TAG, "::DS3231 wait for first half of second");
@@ -118,8 +118,14 @@ bool DS3231::setTime(struct tm* time)
     data[4] = dec2bcd(time->tm_mday);
     data[5] = dec2bcd(time->tm_mon + 1);
     data[6] = dec2bcd(time->tm_year - 100);
-
-    return write(SECONDS, sizeof(data), data);
+#ifdef SETTIME_LATENCY_OUTPUT
+    gpio_set_level(LATENCY_PIN, 1);
+#endif
+    bool ret = write(SECONDS, sizeof(data), data);
+#ifdef SETTIME_LATENCY_OUTPUT
+    gpio_set_level(LATENCY_PIN, 0);
+#endif
+    return ret;
 }
 
 bool DS3231::updateReg(Register reg, uint8_t value, uint8_t mask)

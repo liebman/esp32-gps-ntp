@@ -2,6 +2,7 @@
 #include "driver/i2c.h"
 #include "esp_log.h"
 
+#include "LatencyPin.h"
 #include "Display.h"
 #include "MicroSecondTimer.h"
 #include "PPS.h"
@@ -9,6 +10,7 @@
 #include "DS3231.h"
 #include "SyncManager.h"
 #include "PageGPS.h"
+#include "PagePPS.h"
 #include "PageSats.h"
 #include "PageAbout.h"
 
@@ -76,6 +78,7 @@ void app_main()
         ESP_LOGE(TAG, "failed to initialize the Display!");
     }
 
+    new PagePPS(pps, rtcpps);
     new PageGPS(gps, pps, rtcpps);
     new PageSats(gps);
     new PageAbout();
@@ -96,6 +99,21 @@ void app_main()
     }
     // turn the backlight on.
     gpio_set_level(TFT_LED_PIN, 1);
+
+
+#ifdef LATENCY_OUTPUT
+    ESP_LOGI(TAG, "::begin configuring LATENCY_PIN pin %d", LATENCY_PIN);
+    io_conf.pin_bit_mask = LATENCY_SEL;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    err = gpio_config(&io_conf);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "failed to init LATENCY_PIN pin as output: %d '%s'", err, esp_err_to_name(err));
+    }
+#endif
 
     if (!pps.begin())
     {
@@ -123,6 +141,12 @@ void app_main()
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
     err = gpio_config(&io_conf);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "failed to init TOUCH IRQ pin as input: %d '%s'", err, esp_err_to_name(err));
+    }
+
+    //syncman.begin();
 
     time_t last_touch = time(nullptr);
     time_t last_time = last_touch;

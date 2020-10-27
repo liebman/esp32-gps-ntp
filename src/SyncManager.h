@@ -8,15 +8,20 @@
 class SyncManager {
 public:
     SyncManager(GPS& gps, DS3231& rtc, PPS& gpspps, PPS& rtcpps);
+    bool begin();
     void process();
-    void setTime(int32_t delta);
 
 private:
-    GPS&    _gps;
-    DS3231& _rtc;
-    PPS&    _gpspps;
-    PPS&    _rtcpps;
-    time_t  _last_time;
+    GPS&            _gps;
+    DS3231&         _rtc;
+    PPS&            _gpspps;
+    PPS&            _rtcpps;
+    time_t          _last_time;
+    TaskHandle_t    _task;
+
+    void setTime(int32_t delta);
+    static void task(void* data);
+
 };
 
 #endif // _SYNC_MANAGER_H

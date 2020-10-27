@@ -1,4 +1,5 @@
 #include "PPS.h"
+#include "LatencyPin.h"
 #include "string.h"
 #include "minmea.h"
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
@@ -48,24 +49,8 @@ bool PPS::begin()
 {
     static bool isr_init = false;
 
-    esp_err_t err = ESP_OK;
-
     if (_pin != GPIO_NUM_NC)
     {
-#ifdef PPS_LATENCY_PIN
-        ESP_LOGI(TAG, "::begin configuring PPS_LATENCY_PIN pin %d", PPS_LATENCY_PIN);
-        gpio_config_t io_conf;
-        io_conf.pin_bit_mask = PPS_LATENCY_SEL;
-        io_conf.mode = GPIO_MODE_OUTPUT;
-        io_conf.intr_type = GPIO_INTR_DISABLE;
-        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-        err = gpio_config(&io_conf);
-        if (err != ESP_OK)
-        {
-            ESP_LOGE(TAG, "failed to init PPS_LATENCY_PIN pin as output: %d '%s'", err, esp_err_to_name(err));
-        }
-#endif
         if (!isr_init)
         {
             isr_init = true;
@@ -225,8 +210,8 @@ static gpio_int_type_t next_level[2] {GPIO_INTR_HIGH_LEVEL,GPIO_INTR_LOW_LEVEL};
 
 void IRAM_ATTR PPS::pps(void* data)
 {
-#ifdef PPS_LATENCY_PIN
-    gpio_set_level(PPS_LATENCY_PIN, 1);
+#ifdef PPS_LATENCY_OUTPUT
+    gpio_set_level(LATENCY_PIN, 1);
 #endif
     PPS* pps = (PPS*)data;
     uint64_t current = pps->_timer.getValue();
@@ -244,8 +229,8 @@ void IRAM_ATTR PPS::pps(void* data)
     {
         pps->_high_time = interval;
         pps->_expect ^= 1;
-#ifdef PPS_LATENCY_PIN
-        gpio_set_level(PPS_LATENCY_PIN, 0);
+#ifdef PPS_LATENCY_OUTPUT
+        gpio_set_level(LATENCY_PIN, 0);
 #endif
         return;
     }
@@ -254,8 +239,8 @@ void IRAM_ATTR PPS::pps(void* data)
     if (pps->_last_timer == 0)
     {
         pps->_last_timer = current;
-#ifdef PPS_LATENCY_PIN
-        gpio_set_level(PPS_LATENCY_PIN, 0);
+#ifdef PPS_LATENCY_OUTPUT
+        gpio_set_level(LATENCY_PIN, 0);
 #endif
         return;
     }
@@ -299,7 +284,7 @@ void IRAM_ATTR PPS::pps(void* data)
     }
 #endif
 
-#ifdef PPS_LATENCY_PIN
-    gpio_set_level(PPS_LATENCY_PIN, 0);
+#ifdef PPS_LATENCY_OUTPUT
+    gpio_set_level(LATENCY_PIN, 0);
 #endif
 }

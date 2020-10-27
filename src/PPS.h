@@ -8,11 +8,6 @@
 #include "driver/timer.h"
 #include "MicroSecondTimer.h"
 
-#ifdef PPS_LATENCY_OUTPUT
-#define PPS_LATENCY_PIN (GPIO_NUM_2)
-#define PPS_LATENCY_SEL (GPIO_SEL_2)
-#endif
-
 class PPS
 {
 public:
@@ -32,10 +27,6 @@ public:
     uint32_t getHighTime();
     uint32_t getLowTime();
     uint32_t getShortLast();
-
-#ifdef RTC_PPS_PIN
-    uint32_t getRTCDelta();
-#endif
 
 protected:
     MicroSecondTimer& _timer;
