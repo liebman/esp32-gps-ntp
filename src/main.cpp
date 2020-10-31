@@ -114,16 +114,28 @@ void app_main()
 
     xTaskCreatePinnedToCore(&init, "init", 4096, nullptr, 1, nullptr, 1);
 
+    bool was_valid = false;
     while(true)
     {
-        uint32_t microseconds;
-        time_t now = gps_pps.getTime(&microseconds);
-        ESP_LOGI(TAG, "time: %ld.%06u min=%u max=%u short=%u long=%u",
-                    now, microseconds,
-                    gps_pps.getTimerMin(),
-                    gps_pps.getTimerMax(),
-                    gps_pps.getTimerShort(),
-                    gps_pps.getTimerLong());
-        vTaskDelay(pdMS_TO_TICKS(60000));
+        bool now_valid = gps.getValid();
+        if (was_valid != now_valid)
+        {
+            if (now_valid)
+            {
+                gps_pps.setTime(gps.getRMCTime());
+                struct timeval tv;
+                uint32_t microseconds;
+                tv.tv_sec = gps_pps.getTime(&microseconds);
+                tv.tv_usec = microseconds;
+                settimeofday(&tv, nullptr);
+                ESP_LOGW(TAG, "gps gained validity, time has been set!");
+            }
+            else
+            {
+                ESP_LOGW(TAG, "gps lost validity!");
+            }
+            was_valid = now_valid;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

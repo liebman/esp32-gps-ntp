@@ -17,6 +17,8 @@ private:
 
     LVPage*  _page;
     LVLabel* _gps_time;
+    LVLabel* _gps_minmax;
+    LVLabel* _gps_shortlong;
     LVStyle  _container_style;
 };
 
