@@ -1,7 +1,5 @@
 #include "PPS.h"
 #include "LatencyPin.h"
-#include "string.h"
-#include "minmea.h"
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 #include <sys/time.h>
@@ -9,14 +7,6 @@
 
 static const char* TAG = "PPS";
 
-
-#ifndef PPS_TASK_PRI
-#define PPS_TASK_PRI configMAX_PRIORITIES-1
-#endif
-
-#ifndef PPS_TASK_CORE
-#define PPS_TASK_CORE 1
-#endif
 
 #if defined(CONFIG_GPSNTP_SHORT_TIME)
 #define PPS_SHORT_VALUE  CONFIG_GPSNTP_SHORT_TIME
@@ -31,10 +21,14 @@ static const char* TAG = "PPS";
 #endif
 
 
-PPS::PPS(MicroSecondTimer& timer, gpio_num_t pps_pin, bool expect_negedge)
-: _timer(timer),
-  _pin(pps_pin)
+PPS::PPS()
 {
+}
+
+bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
+{
+    static bool isr_init = false;
+    _pin = pps_pin;
     if (expect_negedge)
     {
         _expect_skip = 1;
@@ -43,11 +37,6 @@ PPS::PPS(MicroSecondTimer& timer, gpio_num_t pps_pin, bool expect_negedge)
     {
         _expect_skip = 0;
     }
-}
-
-bool PPS::begin()
-{
-    static bool isr_init = false;
 
     if (_pin != GPIO_NUM_NC)
     {
@@ -70,151 +59,22 @@ bool PPS::begin()
         ESP_LOGI(TAG, "::begin setup ppsISR");
         gpio_set_intr_type(_pin, GPIO_INTR_HIGH_LEVEL);
         gpio_intr_enable(_pin);
-
-
     }
-
-#if 0
-    ESP_LOGI(TAG, "::begin create PPS task at priority %d core %d", PPS_TASK_PRI, PPS_TASK_CORE);
-    xTaskCreatePinnedToCore(ppsTask, "PPS", 4096, this, PPS_TASK_PRI, &_task, PPS_TASK_CORE);
-#endif
 
     return true;
 }
 
 
-uint32_t PPS::getCount()
-{
-    return _count;
-}
-
-time_t PPS::getTime(uint32_t* microseconds)
-{
-    uint32_t count;
-    // edge case!  both seconds and _last_timer only change once a second, however,
-    // it changes via an interrupt so we make sure we have good values by making sure
-    // it is the same on second look
-    do
-    {
-        count = _count;
-        if (microseconds != nullptr)
-        {
-            *microseconds = _timer.getValue() - _last_timer;
-            // timer could be slightly off, insure microseconds is not returned as a full second!
-            if (*microseconds > 999999)
-            {
-                *microseconds = 999999;
-            }
-        }
-    } while (count != _count); // insure we stay on the same seconds (to go with the microseconds)
-
-    return (time_t)_count;
-}
-
-void PPS::setTime(time_t time)
-{
-    _count = (uint32_t)time;
-}
-
-uint64_t PPS::getLastTimer()
-{
-    uint64_t last = _last_timer;
-    if (last != _last_timer)
-    {
-        last = _last_timer;
-    }
-    return last;
-}
-
-void PPS::resetMicroseconds()
-{
-    // TODO: do I need a lock now?
-    _last_timer = _timer.getValue();
-}
-
-int PPS::getLevel()
-{
-    return gpio_get_level(_pin);
-}
-
-uint32_t PPS::getTimerMax()
-{
-    return _timer_max;
-}
-
-uint32_t PPS::getTimerMin()
-{
-    return _timer_min;
-}
-
-uint32_t PPS::getMissed()
-{
-    return _missed;
-}
-
-uint32_t PPS::getShort()
-{
-    return _short;
-}
-
-uint32_t PPS::getShortLast()
-{
-    return _short_last;
-}
-
-uint32_t PPS::getLast()
-{
-    return _last;
-}
-
-uint32_t PPS::getHighTime()
-{
-    return _high_time;
-}
-
-uint32_t PPS::getLowTime()
-{
-    return _low_time;
-}
-
-#if 0
-void PPS::ppsTask(void* data)
-{
-    GPS* gps = (GPS*)data;
-    uint64_t value;
-
-    ESP_LOGI(TAG, "::ppsTask - starting!");
-
-    while (true)
-    {
-        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10000)))
-        {
-            if (pps->_set_time && pps->_set_time_func)
-            {
-                pps->_set_time_func(pps->_time);
-                pps->_set_time = false;
-            }
-            esp_err_t err = timer_get_counter_value(GPS_TIMER_GROUP, GPS_TIMER_NUM, &value);
-            if (err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "::ppsTask timer_get_counter_value failed: group=%d timer=%d err=%d (%s)", GPS_TIMER_GROUP, GPS_TIMER_NUM, err, esp_err_to_name(err));
-                continue;
-            }
-            ESP_LOGV(TAG, "ppsTask: notify delay %u us", (uint32_t)value);
-        }
-    }
-}
-#endif
-
 static gpio_int_type_t next_level[2] {GPIO_INTR_HIGH_LEVEL,GPIO_INTR_LOW_LEVEL};
 
 void IRAM_ATTR PPS::pps(void* data)
 {
+    PPS* pps = (PPS*)data;
+    uint64_t current = esp_timer_get_time();
 #ifdef PPS_LATENCY_OUTPUT
     gpio_set_level(LATENCY_PIN, 1);
 #endif
-    PPS* pps = (PPS*)data;
-    uint64_t current = pps->_timer.getValue();
+
     int level = gpio_get_level(pps->_pin);
     if (pps->_expect != level)
     {
@@ -227,7 +87,6 @@ void IRAM_ATTR PPS::pps(void* data)
 
     if (pps->_expect == pps->_expect_skip)
     {
-        pps->_high_time = interval;
         pps->_expect ^= 1;
 #ifdef PPS_LATENCY_OUTPUT
         gpio_set_level(LATENCY_PIN, 0);
@@ -236,21 +95,30 @@ void IRAM_ATTR PPS::pps(void* data)
     }
     pps->_expect ^= 1;
 
+    pps->_last_timer = current;
+
+    // could be the first time, lets skip the statistics and time keeping in that case
     if (pps->_last_timer == 0)
     {
-        pps->_last_timer = current;
 #ifdef PPS_LATENCY_OUTPUT
         gpio_set_level(LATENCY_PIN, 0);
 #endif
         return;
     }
 
-    pps->_low_time = interval;
+    // increment the time
+    pps->_time += 1;
 
-    pps->_last = interval;
-    pps->_count += 1;
+    // no stats for the first few seconds
+    if (pps->_time < 3)
+    {
+#ifdef PPS_LATENCY_OUTPUT
+        gpio_set_level(LATENCY_PIN, 0);
+#endif
+        return;
+    }
 
-
+    // detect min/max statistics
     if (pps->_timer_min == 0 || interval < pps->_timer_min)
     {
         pps->_timer_min = interval;
@@ -263,28 +131,81 @@ void IRAM_ATTR PPS::pps(void* data)
 
     if (interval < PPS_SHORT_VALUE)
     {
-        pps->_short += 1;
-        pps->_short_last = interval;
+        pps->_timer_short += 1;
         pps->_timer_min = 0;
     }
     else if (interval > PPS_MISS_VALUE)
     {
-        pps->_missed += 1;
-        pps->_miss_last = interval;
+        pps->_timer_long += 1;
         pps->_timer_max = 0;
     }
-
-    pps->_last_timer = current;
-#if 0
-    BaseType_t hpwake;
-    vTaskNotifyGiveFromISR(pps->_task, &hpwake);
-    if (hpwake)
-    {
-        portYIELD_FROM_ISR();
-    }
-#endif
-
 #ifdef PPS_LATENCY_OUTPUT
-    gpio_set_level(LATENCY_PIN, 0);
+        gpio_set_level(LATENCY_PIN, 0);
 #endif
+}
+
+/**
+ * return current time.  With microseconds if microseconds is not NULL
+*/
+time_t PPS::getTime(uint32_t* microseconds)
+{
+    uint32_t now;
+    // edge case!  both seconds and _last_timer only change once a second, however,
+    // it changes via an interrupt so we make sure we have good values by making sure
+    // it is the same on second look
+    do
+    {
+        now = _time;
+        if (microseconds != nullptr)
+        {
+            *microseconds = esp_timer_get_time() - _last_timer;
+            // timer could be slightly off, insure microseconds is not returned as a full second!
+            if (*microseconds > 999999)
+            {
+                *microseconds = 999999;
+            }
+        }
+    } while (now != _time); // insure we stay on the same seconds (to go with the microseconds)
+
+    return (time_t)now;
+}
+
+/**
+ * set the time, seconds only
+*/
+void PPS::setTime(time_t time)
+{
+    _time = time;
+}
+
+/**
+ * get the minimum time in microseconds between PPS pulses
+*/
+uint32_t PPS::getTimerMin()
+{
+    return _timer_min;
+}
+
+/**
+ * get the maximum time in microseconds between PPS pulses
+*/
+uint32_t PPS::getTimerMax()
+{
+    return _timer_max;
+}
+
+/**
+ * get the number of PPS pulses considered short (and invalid)
+*/
+uint32_t PPS::getTimerShort()
+{
+    return _timer_short;
+}
+
+/**
+ * get the number of PPS pulses considered long (and invalid)
+*/
+uint32_t PPS::getTimerLong()
+{
+    return _timer_long;
 }

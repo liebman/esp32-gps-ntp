@@ -15,7 +15,7 @@ class GPS
     
 public:
     GPS(uart_port_t uart_id = UART_NUM_1, size_t buffer_size = 2048);
-    bool  begin(gpio_num_t tx_pin, gpio_num_t rx_pin, PPS* pps = nullptr);
+    bool  begin(gpio_num_t tx_pin, gpio_num_t rx_pin);
     // from GSV
     int   getSatsTotal();
     // from GGA
@@ -36,7 +36,6 @@ public:
     void setTime(std::function<void(time_t time)>);
 
 protected:
-    PPS*        _pps;
     uart_port_t _uart_id;
     size_t      _buffer_size;
     char*       _buffer;

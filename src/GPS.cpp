@@ -8,45 +8,12 @@
 
 static const char* TAG = "GPS";
 
-
-#ifndef PPS_TASK_PRI
-#define PPS_TASK_PRI configMAX_PRIORITIES-1
-#endif
-
-#ifndef PPS_TASK_CORE
-#define PPS_TASK_CORE 1
-#endif
-
 #ifndef GPS_TASK_PRI
 #define GPS_TASK_PRI configMAX_PRIORITIES-1
 #endif
 
 #ifndef GPS_TASK_CORE
 #define GPS_TASK_CORE 1
-#endif
-
-#if defined(CONFIG_GPSNTP_SHORT_TIME)
-#define PPS_SHORT_VALUE  CONFIG_GPSNTP_SHORT_TIME
-#else
-#define PPS_SHORT_VALUE  999500
-#endif
-
-#if defined(CONFIG_GPSNTP_MISS_TIME)
-#define PPS_MISS_VALUE CONFIG_GPSNTP_MISS_TIME
-#else
-#define PPS_MISS_VALUE  1000500 // 500 usec max
-#endif
-
-#if defined(CONFIG_GPSNTP_RTC_DRIFT_MAX)
-#define RTC_DRIFT_MAX CONFIG_GPSNTP_RTC_DRIFT_MAX
-#else
-#define RTC_DRIFT_MAX 500
-#endif
-
-#if defined(CONFIG_GPSNTP_RTC_DRIFT_MIN)
-#define RTC_DRIFT_MIN CONFIG_GPSNTP_RTC_DRIFT_MIN
-#else
-#define RTC_DRIFT_MIN 999500
 #endif
 
 typedef union {
@@ -67,9 +34,8 @@ GPS::GPS(uart_port_t uart_id, size_t buffer_size)
 {
 }
 
-bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin, PPS* pps)
+bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
 {
-    _pps = pps;
     ESP_LOGI(TAG, "::begin allocating uart buffer");
     _buffer = new char[_buffer_size];
     if (_buffer == nullptr)
@@ -246,12 +212,6 @@ void GPS::process(char* sentence)
             {
                 _valid = false;
                 ESP_LOGE(TAG, "::process RMC failed to convert date/time!");
-            }
-
-            if (_valid && _pps != nullptr && _pps->getTime() != _rmc_time.tv_sec)
-            {
-                ESP_LOGW(TAG, "::process seting PPS time %ld", _rmc_time.tv_sec);
-                _pps->setTime(_rmc_time.tv_sec);
             }
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
@@ -470,7 +430,7 @@ void GPS::task()
 
 void GPS::task(void* data)
 {
-    ESP_LOGI(TAG, "::task - starting!");
+    ESP_LOGI(TAG, "::task Starting with priority %d core %d", uxTaskPriorityGet(nullptr), xPortGetCoreID());
     GPS* gps = (GPS*)data;
     gps->task();
 }

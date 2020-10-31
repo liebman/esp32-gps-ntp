@@ -16,7 +16,7 @@
 #endif
 
 #ifndef DISPLAY_TASK_CORE
-#define DISPLAY_TASK_CORE 1
+#define DISPLAY_TASK_CORE 0
 #endif
 
 static const char* TAG = "Display";

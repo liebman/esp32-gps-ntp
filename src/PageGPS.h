@@ -9,21 +9,18 @@
 
 class PageGPS {
 public:
-    PageGPS(GPS& gps, PPS& pps, PPS& rtcpps);
+    PageGPS(GPS& gps);
     ~PageGPS();
 private:
     void update();
     static void task(lv_task_t* task);
     GPS&     _gps;
-    PPS&     _pps;
-    PPS&     _rtcpps;
     LVPage*  _page;
     LVLabel* _sats;
     LVLabel* _status;
     LVLabel* _pos;
     LVLabel* _rmc_time;
-    LVLabel* _ppsl;
-    LVLabel* _rtcppsl;
+
     LVLabel* _psti;
 
     LVStyle  _container_style;

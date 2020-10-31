@@ -9,8 +9,8 @@
 
 static const char* TAG = "PagePPS";
 
-PagePPS::PagePPS(PPS& gpspps, PPS& rtcpps)
-: _gpspps(gpspps), _rtcpps(rtcpps)
+PagePPS::PagePPS(PPS& gps_pps)
+: _gps_pps(gps_pps)
 {
     WithDisplayLock([this](){
         _container_style.setPadInner(LV_STATE_DEFAULT, LV_DPX(2));
@@ -29,10 +29,7 @@ PagePPS::PagePPS(PPS& gpspps, PPS& rtcpps)
         cont->align(nullptr, LV_ALIGN_CENTER, 0, 0);
         cont->setDragParent(true);
 
-        _sys_time = new LVLabel(cont);
         _gps_time = new LVLabel(cont);
-        _rtc_time = new LVLabel(cont);
-        _delta    = new LVLabel(cont);
     
         ESP_LOGI(TAG, "creating task");
         lv_task_create(task, 100, LV_TASK_PRIO_LOW, this);
@@ -63,23 +60,8 @@ void PagePPS::update()
     static char buf[48];
     uint32_t microseconds;
     time_t   time;
-    struct timeval tv;
     
-    gettimeofday(&tv, nullptr);
-    fmtTime("SYS: ", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
-    _sys_time->setText(buf);
-
-    time = _gpspps.getTime(&microseconds);
-    fmtTime("GPS: ", buf, sizeof(buf)-1, time, microseconds);
+    time = _gps_pps.getTime(&microseconds);
+    fmtTime("GPS PPS: ", buf, sizeof(buf)-1, time, microseconds);
     _gps_time->setText(buf);
-
-    time = _rtcpps.getTime(&microseconds);
-    fmtTime("RTC: ", buf, sizeof(buf)-1, time, microseconds);
-    _rtc_time->setText(buf);
-
-    uint64_t last_rtc = _rtcpps.getLastTimer();
-    uint64_t last_gps = _gpspps.getLastTimer();
-    int64_t delta = last_gps - last_rtc;
-    snprintf(buf, sizeof(buf)-1, "Delta: %lld", delta);
-    _delta->setText(buf);
 }

@@ -1,18 +1,17 @@
 #include "freertos/FreeRTOS.h"
-#include "driver/i2c.h"
+#include "freertos/task.h"
+#include "driver/gpio.h"
 #include "esp_log.h"
 
-#include "LatencyPin.h"
 #include "Display.h"
-#include "MicroSecondTimer.h"
+#include "LatencyPin.h"
 #include "PPS.h"
 #include "GPS.h"
-#include "DS3231.h"
-#include "SyncManager.h"
-#include "PageGPS.h"
-#include "PagePPS.h"
-#include "PageSats.h"
+
 #include "PageAbout.h"
+#include "PagePPS.h"
+#include "PageGPS.h"
+#include "PageSats.h"
 
 #ifdef __cplusplus
 //
@@ -40,53 +39,39 @@ extern "C" {
 #define TFT_LED_PIN (GPIO_NUM_4)
 #define TFT_LED_SEL (GPIO_SEL_4)
 
-static const char* TAG = "app_main";
-static MicroSecondTimer ust;
+static const char* TAG = "main";
+static PPS gps_pps;
 static GPS gps;
-static PPS pps(ust, GPS_PPS_PIN);
-static DS3231 rtc;
-static PPS rtcpps(ust, RTC_PPS_PIN, true);
-static SyncManager syncman(gps, rtc, pps, rtcpps);
-
-void app_main() 
+static void init(void* data)
 {
-    ESP_LOGI(TAG, "Starting with priority %d", uxTaskPriorityGet(nullptr));
+    (void)data;
+    ESP_LOGI(TAG, "init: with priority %d core %d", uxTaskPriorityGet(nullptr), xPortGetCoreID());
 
-    // initialize I2C_NUM_0 for the MCP23017T
-    esp_err_t err = i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
+    esp_err_t err;
+    gpio_config_t io_conf;
+
+#ifdef LATENCY_OUTPUT
+    ESP_LOGI(TAG, "configuring LATENCY_PIN pin %d", LATENCY_PIN);
+    io_conf.pin_bit_mask = LATENCY_SEL;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    err = gpio_config(&io_conf);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "i2c_driver_install: I2C_NUM_%d %d (%s)", I2C_NUM_0, err, esp_err_to_name(err));
+        ESP_LOGE(TAG, "failed to init LATENCY_PIN pin as output: %d '%s'", err, esp_err_to_name(err));
     }
-    i2c_config_t conf;
-    conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = SDA_PIN;
-    conf.scl_io_num = SCL_PIN;
-    conf.sda_pullup_en = GPIO_PULLUP_DISABLE;
-    conf.scl_pullup_en = GPIO_PULLUP_DISABLE;
-    conf.master.clk_speed = 400000;
-    err = i2c_param_config(I2C_NUM_0, &conf);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "i2c_param_config: I2C_NUM_%d %d (%s)", I2C_NUM_0, err, esp_err_to_name(err));
-    }
+#endif
 
-    // initialize the display
-    ESP_LOGI(TAG, "initializing the Display");
+    ESP_LOGI(TAG, "init: starting display");
     if (!Display::getDisplay().begin())
     {
-        ESP_LOGE(TAG, "failed to initialize the Display!");
+        ESP_LOGE(TAG, "init: failed to initialize display!");
     }
-
-    new PagePPS(pps, rtcpps);
-    new PageGPS(gps, pps, rtcpps);
-    new PageSats(gps);
-    new PageAbout();
 
     // turn the backlight on.
     ESP_LOGI(TAG,  "turning backlight on");
-
-    gpio_config_t io_conf;
     io_conf.pin_bit_mask = TFT_LED_SEL;
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -100,93 +85,45 @@ void app_main()
     // turn the backlight on.
     gpio_set_level(TFT_LED_PIN, 1);
 
+    new PagePPS(gps_pps);
+    new PageGPS(gps);
+    new PageSats(gps);
+    new PageAbout();
 
-#ifdef LATENCY_OUTPUT
-    ESP_LOGI(TAG, "::begin configuring LATENCY_PIN pin %d", LATENCY_PIN);
-    io_conf.pin_bit_mask = LATENCY_SEL;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    err = gpio_config(&io_conf);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "failed to init LATENCY_PIN pin as output: %d '%s'", err, esp_err_to_name(err));
-    }
-#endif
-
-    if (!pps.begin())
-    {
-        ESP_LOGE(TAG, "failed to start pps!");
-    }
-
-    if (!rtcpps.begin())
-    {
-        ESP_LOGE(TAG, "failed to start rtcpps!");
-    }
-
-    // initialize the DS3231 RTC
-    rtc.begin(&rtcpps);
-
+    // start gps watching NMEA messages
     // swap rx/tx as GPS_RX is our TX!
-    if (!gps.begin(GPS_RX_PIN, GPS_TX_PIN, &pps))
+    if (!gps.begin(GPS_RX_PIN, GPS_TX_PIN))
     {
         ESP_LOGE(TAG, "failed to start gps!");
     }
 
-    // lets monitor the touch input.
-    io_conf.pin_bit_mask = TCH_IRQ_SEL;
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    err = gpio_config(&io_conf);
-    if (err != ESP_OK)
+    // start pps watching gps
+    if (!gps_pps.begin(GPS_PPS_PIN))
     {
-        ESP_LOGE(TAG, "failed to init TOUCH IRQ pin as input: %d '%s'", err, esp_err_to_name(err));
+        ESP_LOGE(TAG, "failed to start pps!");
     }
 
-    //syncman.begin();
+    vTaskDelete(NULL);
+}
 
-    time_t last_touch = time(nullptr);
-    time_t last_time = last_touch;
+void app_main()
+{
+    ESP_LOGI(TAG, "Starting with priority %d core %d", uxTaskPriorityGet(nullptr), xPortGetCoreID());
 
-    bool is_on = true;
+
+
+    xTaskCreatePinnedToCore(&init, "init", 4096, nullptr, 1, nullptr, 1);
+
     while(true)
     {
-        time_t now = time(nullptr);
-
-        // keep ds3231 in sync
-        syncman.process();
-
-        // detect time jump when time is set.
-        if (now - last_time > 300)
-        {
-            last_touch = now;
-        } 
-        last_time = now;
-
-        if (gpio_get_level(TCH_IRQ_PIN) == 0)
-        {
-            last_touch = now;
-        }
-
-        if ((now - last_touch) > 3600) // 1 hr
-        {
-            if (is_on)
-            {
-                ESP_LOGI(TAG, "turning OFF backlight");
-                gpio_set_level(TFT_LED_PIN, 0);
-                is_on = false;
-            }
-        }
-        else if (!is_on)
-        {
-            ESP_LOGI(TAG, "turning ON backlight");
-            gpio_set_level(TFT_LED_PIN, 1);
-            is_on = true;
-        }
-
-        vTaskDelay(10);
+        uint32_t microseconds;
+        time_t now = gps_pps.getTime(&microseconds);
+        ESP_LOGI(TAG, "time: %ld.%06u min=%u max=%u short=%u long=%u",
+                    now, microseconds,
+                    gps_pps.getTimerMin(),
+                    gps_pps.getTimerMax(),
+                    gps_pps.getTimerShort(),
+                    gps_pps.getTimerLong());
+        vTaskDelay(pdMS_TO_TICKS(60000));
     }
 }

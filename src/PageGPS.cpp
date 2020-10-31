@@ -9,8 +9,8 @@
 
 static const char* TAG = "PageGPS";
 
-PageGPS::PageGPS(GPS& gps, PPS& pps, PPS& rtcpps)
-: _gps(gps), _pps(pps), _rtcpps(rtcpps)
+PageGPS::PageGPS(GPS& gps)
+: _gps(gps)
 {
     WithDisplayLock([this](){
         _container_style.setPadInner(LV_STATE_DEFAULT, LV_DPX(2));
@@ -33,8 +33,7 @@ PageGPS::PageGPS(GPS& gps, PPS& pps, PPS& rtcpps)
         _sats     = new LVLabel(cont);
         _status   = new LVLabel(cont);
         _pos      = new LVLabel(cont);
-        _ppsl     = new LVLabel(cont);
-        _rtcppsl  = new LVLabel(cont);
+
         _psti     = new LVLabel(cont);
     
         ESP_LOGI(TAG, "creating task");
@@ -76,20 +75,6 @@ void PageGPS::update()
         buf[strlen(buf)-1] = '\0';
     }
     _rmc_time->setText(buf);
-
-    snprintf(buf, sizeof(buf)-1, "PPS: missed=%d short=%u\nmin/max/lst=%07u/%07u/%07u",
-                                _pps.getMissed(), _pps.getShort(),
-                                _pps.getTimerMin(),
-                                _pps.getTimerMax(),
-                                _pps.getLast());
-    _ppsl->setText(buf);
-
-    snprintf(buf, sizeof(buf)-1, "RTC: missed=%d short=%u\nmin/max/lst=%07u/%07u/%07u",
-                                 _rtcpps.getMissed(), _rtcpps.getShort(),
-                                _rtcpps.getTimerMin(),
-                                _rtcpps.getTimerMax(),
-                                _rtcpps.getLast());
-    _rtcppsl->setText(buf);
 
     _psti->setText(_gps.getPSTI());
 }
