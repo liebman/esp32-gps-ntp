@@ -152,7 +152,7 @@ void Display::task(void* data)
         Display::getDisplay().lock(-1000);
         lv_task_handler(); /* let the GUI do its work */
         Display::getDisplay().unlock();
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
