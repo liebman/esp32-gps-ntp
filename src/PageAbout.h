@@ -12,6 +12,9 @@ private:
     static void task(lv_task_t* task);
     LVPage*  _page;
     LVLabel* _free;
+    LVLabel* _address;
+    LVLabel* _uptime;
+    LVStyle  _container_style;
 };
 
 #endif // _PAGE_ABOUT_H_

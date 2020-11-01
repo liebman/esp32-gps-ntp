@@ -126,7 +126,24 @@ void app_main()
     ESP_LOGI(TAG, "initializing Network");
     Network::getNetwork().begin();
 
+    // lets monitor the touch input.
+    gpio_config_t io_conf;
+    io_conf.pin_bit_mask = TCH_IRQ_SEL;
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    esp_err_t err = gpio_config(&io_conf);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "failed to init TOUCH IRQ pin as input: %d '%s'", err, esp_err_to_name(err));
+    }
+
     bool was_valid = false;
+    bool is_on = true;
+    time_t last_touch = time(nullptr);
+    time_t last_time = last_touch;
+
     while(true)
     {
         bool now_valid = gps.getValid();
@@ -147,6 +164,40 @@ void app_main()
                 ESP_LOGW(TAG, "gps lost validity!");
             }
             was_valid = now_valid;
+        }
+
+        time_t now = time(nullptr);
+        
+        if (now_valid)
+        {
+            // detect time jump when time is set.
+            if (now - last_time > 300)
+            {
+                last_touch = now;
+            } 
+            last_time = now;
+
+            if (gpio_get_level(TCH_IRQ_PIN) == 0)
+            {
+                last_touch = now;
+            }
+
+            if ((now - last_touch) > 3600) // 1 hr
+            {
+                if (is_on)
+                {
+                    ESP_LOGI(TAG, "turning OFF backlight");
+                    gpio_set_level(TFT_LED_PIN, 0);
+                    is_on = false;
+                }
+            }
+            else if (!is_on)
+            {
+                ESP_LOGI(TAG, "turning ON backlight");
+                gpio_set_level(TFT_LED_PIN, 1);
+                is_on = true;
+            }
+
         }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
