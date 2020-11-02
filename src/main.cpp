@@ -9,6 +9,7 @@
 #include "Network.h"
 #include "PPS.h"
 #include "GPS.h"
+#include "NTP.h"
 
 #include "PageAbout.h"
 #include "PagePPS.h"
@@ -44,6 +45,8 @@ extern "C" {
 static const char* TAG = "main";
 static PPS gps_pps;
 static GPS gps;
+static NTP ntp(gps_pps);
+
 static void init(void* data)
 {
     (void)data;
@@ -104,6 +107,9 @@ static void init(void* data)
     {
         ESP_LOGE(TAG, "failed to start pps!");
     }
+
+    // start pps watching gps
+    ntp.begin();
 
     vTaskDelete(NULL);
 }
@@ -199,6 +205,6 @@ void app_main()
             }
 
         }
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

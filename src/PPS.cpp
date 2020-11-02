@@ -172,6 +172,26 @@ time_t PPS::getTime(uint32_t* microseconds)
 }
 
 /**
+ * get current time & microseconds.
+*/
+void PPS::getTime(struct timeval* tv)
+{
+    // edge case!  both seconds and _last_timer only change once a second, however,
+    // it changes via an interrupt so we make sure we have good values by making sure
+    // it is the same on second look
+    do
+    {
+        tv->tv_sec  = _time;
+        tv->tv_usec = esp_timer_get_time() - _last_timer;
+        // timer could be slightly off, insure microseconds is not returned as a full second!
+        if (tv->tv_usec > 999999)
+        {
+            tv->tv_usec = 999999;
+        }
+    } while (tv->tv_sec != _time); // insure we stay on the same seconds (to go with the microseconds)
+}
+
+/**
  * set the time, seconds only
 */
 void PPS::setTime(time_t time)

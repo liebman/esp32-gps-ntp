@@ -13,6 +13,7 @@ public:
     PPS();
     bool     begin(gpio_num_t pps_pin = GPIO_NUM_NC, bool expect_negedge = false);
     time_t   getTime(uint32_t* microseconds);
+    void     getTime(struct timeval* tv);
     void     setTime(time_t time);
     uint32_t getTimerMin();
     uint32_t getTimerMax();
