@@ -44,7 +44,7 @@ bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
         {
             isr_init = true;
             ESP_LOGI(TAG, "::begin installing gpio isr service!");
-            esp_err_t err = gpio_install_isr_service(ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_LEVEL2);
+            esp_err_t err = gpio_install_isr_service(ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_LEVEL3);
             if (err != ESP_OK)
             {
                 ESP_LOGE(TAG, "::begin failed to install gpio isr service: %d (%s)", err, esp_err_to_name(err));
@@ -74,13 +74,14 @@ void IRAM_ATTR PPS::pps(void* data)
 #ifdef PPS_LATENCY_OUTPUT
     gpio_set_level(LATENCY_PIN, 1);
 #endif
-
+#if 0
+    // print warning if level is not what we expect!
     int level = gpio_get_level(pps->_pin);
     if (pps->_expect != level)
     {
         ets_printf("ERROR: %d expect (%d) != level (%d)\n", pps->_pin, pps->_expect, level);
     }
-
+#endif
     gpio_set_intr_type(pps->_pin, next_level[pps->_expect]);
 
     uint32_t interval = current - pps->_last_timer;
