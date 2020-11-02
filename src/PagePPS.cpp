@@ -60,11 +60,9 @@ static void fmtTime(const char* label, char* result, const size_t size, const ti
 void PagePPS::update()
 {
     static char buf[128];
-    uint32_t microseconds;
-    time_t   time;
-    
-    time = _gps_pps.getTime(&microseconds);
-    fmtTime("GPS PPS: ", buf, sizeof(buf)-1, time, microseconds);
+    struct timeval tv;
+    _gps_pps.getTime(&tv);
+    fmtTime("GPS PPS: ", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
     _gps_time->setText(buf);
 
     snprintf(buf, sizeof(buf)-1, "Min/Max: %06u / %07u",

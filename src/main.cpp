@@ -159,9 +159,7 @@ void app_main()
             {
                 gps_pps.setTime(gps.getRMCTime());
                 struct timeval tv;
-                uint32_t microseconds;
-                tv.tv_sec = gps_pps.getTime(&microseconds);
-                tv.tv_usec = microseconds;
+                gps_pps.getTime(&tv);
                 settimeofday(&tv, nullptr);
                 ESP_LOGW(TAG, "gps gained validity, time has been set!");
             }

@@ -146,32 +146,6 @@ void IRAM_ATTR PPS::pps(void* data)
 }
 
 /**
- * return current time.  With microseconds if microseconds is not NULL
-*/
-time_t PPS::getTime(uint32_t* microseconds)
-{
-    uint32_t now;
-    // edge case!  both seconds and _last_timer only change once a second, however,
-    // it changes via an interrupt so we make sure we have good values by making sure
-    // it is the same on second look
-    do
-    {
-        now = _time;
-        if (microseconds != nullptr)
-        {
-            *microseconds = esp_timer_get_time() - _last_timer;
-            // timer could be slightly off, insure microseconds is not returned as a full second!
-            if (*microseconds > 999999)
-            {
-                *microseconds = 999999;
-            }
-        }
-    } while (now != _time); // insure we stay on the same seconds (to go with the microseconds)
-
-    return (time_t)now;
-}
-
-/**
  * get current time & microseconds.
 */
 void PPS::getTime(struct timeval* tv)
