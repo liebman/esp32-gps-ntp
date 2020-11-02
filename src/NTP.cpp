@@ -1,4 +1,5 @@
 #include "NTP.h"
+#include "Network.h"
 #include "esp_log.h"
 #include "math.h"
 
@@ -8,6 +9,8 @@
 #include <lwip/netdb.h>
 
 static const char* TAG = "NTP";
+
+//#define NTP_PACKET_DEBUG
 
 #ifndef NTP_TASK_PRI
 #define NTP_TASK_PRI configMAX_PRIORITIES-3
@@ -77,21 +80,21 @@ char* timestr(long int t)
 
 void dumpNTPPacket(NTPPacket* ntp)
 {
-    ESP_LOGI(TAG, "size:       %u\n", sizeof(*ntp));
-    ESP_LOGI(TAG, "firstbyte:  0x%02x\n", *(uint8_t*)ntp);
-    ESP_LOGI(TAG, "li:         %u\n", getLI(ntp->flags));
-    ESP_LOGI(TAG, "version:    %u\n", getVERS(ntp->flags));
-    ESP_LOGI(TAG, ("mode:       %u\n", getMODE(ntp->flags));
-    ESP_LOGI(TAG, "stratum:    %u\n", ntp->stratum);
-    ESP_LOGI(TAG, "poll:       %u\n", ntp->poll);
-    ESP_LOGI(TAG, "precision:  %d\n", ntp->precision);
-    ESP_LOGI(TAG, "delay:      %u\n", ntp->delay);
-    ESP_LOGI(TAG, "dispersion: %u\n", ntp->dispersion);
-    ESP_LOGI(TAG, "ref_id:     %02x:%02x:%02x:%02x\n", ntp->ref_id[0], ntp->ref_id[1], ntp->ref_id[2], ntp->ref_id[3]);
-    ESP_LOGI(TAG, "ref_time:   %08x:%08x\n", ntp->ref_time.seconds, ntp->ref_time.fraction);
-    ESP_LOGI(TAG, "orig_time:  %08x:%08x\n", ntp->orig_time.seconds, ntp->orig_time.fraction);
-    ESP_LOGI(TAG, "recv_time:  %08x:%08x\n", ntp->recv_time.seconds, ntp->recv_time.fraction);
-    ESP_LOGI(TAG, "xmit_time:  %08x:%08x\n", ntp->xmit_time.seconds, ntp->xmit_time.fraction);
+    ESP_LOGI(TAG, "size:       %u", sizeof(*ntp));
+    ESP_LOGI(TAG, "firstbyte:  0x%02x", *(uint8_t*)ntp);
+    ESP_LOGI(TAG, "li:         %u", getLI(ntp->flags));
+    ESP_LOGI(TAG, "version:    %u", getVERS(ntp->flags));
+    ESP_LOGI(TAG, "mode:       %u", getMODE(ntp->flags));
+    ESP_LOGI(TAG, "stratum:    %u", ntp->stratum);
+    ESP_LOGI(TAG, "poll:       %u", ntp->poll);
+    ESP_LOGI(TAG, "precision:  %d", ntp->precision);
+    ESP_LOGI(TAG, "delay:      %u", ntp->delay);
+    ESP_LOGI(TAG, "dispersion: %u", ntp->dispersion);
+    ESP_LOGI(TAG, "ref_id:     %02x:%02x:%02x:%02x", ntp->ref_id[0], ntp->ref_id[1], ntp->ref_id[2], ntp->ref_id[3]);
+    ESP_LOGI(TAG, "ref_time:   %08x:%08x", ntp->ref_time.seconds, ntp->ref_time.fraction);
+    ESP_LOGI(TAG, "orig_time:  %08x:%08x", ntp->orig_time.seconds, ntp->orig_time.fraction);
+    ESP_LOGI(TAG, "recv_time:  %08x:%08x", ntp->recv_time.seconds, ntp->recv_time.fraction);
+    ESP_LOGI(TAG, "xmit_time:  %08x:%08x", ntp->xmit_time.seconds, ntp->xmit_time.fraction);
 }
 #else
 #define dumpNTPPacket(x)
@@ -140,14 +143,16 @@ void NTP::getNTPTime(NTPTime* time)
     time->fraction = (uint32_t)(percent * (double)4294967296L);
 }
 
+
 void NTP::task(void* data)
 {
+    NTP* ntp = (NTP*)data;
     ESP_LOGI(TAG, "::task started with priority %d core %d", uxTaskPriorityGet(nullptr), xPortGetCoreID());
-
     int addr_family = AF_INET;
     int ip_protocol = IPPROTO_IP;
     char addr_str[128];
-    char rx_buffer[128];
+    NTPPacket packet;
+    NTPTime   recv_time;
 
     while(true)
     {
@@ -156,6 +161,9 @@ void NTP::task(void* data)
         dest_addr.sin_family = AF_INET;
         dest_addr.sin_port = htons(NTP_PORT);
         inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
+
+        // wait till there is a network connected
+        Network::getNetwork().waitFor(Network::HAS_IP);
 
         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0) {
@@ -175,31 +183,83 @@ void NTP::task(void* data)
             ESP_LOGI(TAG, "Waiting for data");
             struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
             socklen_t socklen = sizeof(source_addr);
-            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+            int len = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&source_addr, &socklen);
+            ntp->getNTPTime(&recv_time);
+            ntp->_req_count++;
 
             // Error occurred during receiving
             if (len < 0) {
                 ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
                 break;
             }
-            // Data received
-            else {
-                // Get the sender's ip address as string
-                if (source_addr.sin6_family == PF_INET) {
-                    inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
-                } else if (source_addr.sin6_family == PF_INET6) {
-                    inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-                }
-
-                ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
-#if 0
-                int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
-                if (err < 0) {
-                    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-                    break;
-                }
-#endif
+            if (len != sizeof(packet))
+            {
+                ESP_LOGE(TAG, "bad packet size: %u != %u", len, sizeof(packet));
+                continue;
             }
+
+            // Get the sender's ip address as string
+            if (source_addr.sin6_family == PF_INET)
+            {
+                inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
+            }
+            else if (source_addr.sin6_family == PF_INET6)
+            {
+                inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+            }
+            ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+
+            packet.delay              = ntohl(packet.delay);
+            packet.dispersion         = ntohl(packet.dispersion);
+            packet.orig_time.seconds  = ntohl(packet.orig_time.seconds);
+            packet.orig_time.fraction = ntohl(packet.orig_time.fraction);
+            packet.ref_time.seconds   = ntohl(packet.ref_time.seconds);
+            packet.ref_time.fraction  = ntohl(packet.ref_time.fraction);
+            packet.recv_time.seconds  = ntohl(packet.recv_time.seconds);
+            packet.recv_time.fraction = ntohl(packet.recv_time.fraction);
+            packet.xmit_time.seconds  = ntohl(packet.xmit_time.seconds);
+            packet.xmit_time.fraction = ntohl(packet.xmit_time.fraction);
+            dumpNTPPacket(&packet);
+            //
+            // Build the response
+            //
+            packet.flags      = setLI(LI_NONE) | setVERS(NTP_VERSION) | setMODE(MODE_SERVER);
+            packet.stratum    = 1;
+            packet.precision  = ntp->_precision;
+            // TODO: compute actual root delay, and root dispersion
+            packet.delay = 1;      //(uint32)(0.000001 * 65536.0);
+            packet.dispersion = 1; //(uint32_t)(_gps.getDispersion() * 65536.0); // TODO: pre-calculate this?
+            memcpy((char*)packet.ref_id, REF_ID, sizeof(packet.ref_id));
+            packet.orig_time  = packet.xmit_time;
+            packet.recv_time  = recv_time;
+            ntp->getNTPTime(&(packet.ref_time));
+            dumpNTPPacket(&packet);
+            packet.delay              = htonl(packet.delay);
+            packet.dispersion         = htonl(packet.dispersion);
+            packet.orig_time.seconds  = htonl(packet.orig_time.seconds);
+            packet.orig_time.fraction = htonl(packet.orig_time.fraction);
+            packet.ref_time.seconds   = htonl(packet.ref_time.seconds);
+            packet.ref_time.fraction  = htonl(packet.ref_time.fraction);
+            packet.recv_time.seconds  = htonl(packet.recv_time.seconds);
+            packet.recv_time.fraction = htonl(packet.recv_time.fraction);
+            ntp->getNTPTime(&(packet.xmit_time));
+            packet.xmit_time.seconds  = htonl(packet.xmit_time.seconds);
+            packet.xmit_time.fraction = htonl(packet.xmit_time.fraction);
+
+            int err = sendto(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+            if (err < 0)
+            {
+                ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+                break;
+            }
+            ntp->_rsp_count++;
+        }
+
+        if (sock != -1)
+        {
+            ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
         }
     }
 }
