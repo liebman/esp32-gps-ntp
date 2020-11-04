@@ -16,6 +16,11 @@
 #include "PageGPS.h"
 #include "PageSats.h"
 
+#include "esp32/ulp.h"
+#include "ulp_main.h"
+extern const uint8_t bin_start[] asm("_binary_ulp_main_bin_start");
+extern const uint8_t bin_end[]   asm("_binary_ulp_main_bin_end");
+
 #ifdef __cplusplus
 //
 // app_main() is called from C
@@ -132,6 +137,22 @@ void app_main()
     ESP_LOGI(TAG, "initializing Network");
     Network::getNetwork().begin();
 
+    esp_err_t err;
+
+    ESP_LOGI(TAG, "loading ULP");
+    err = ulp_load_binary(0, bin_start, (bin_end - bin_start) / sizeof(uint32_t));
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "::begin: failed to load ULP: %d (%s)", err, esp_err_to_name(err));
+    }
+
+    ESP_LOGI(TAG, "::begin: starting ULP");
+    err = ulp_run(&ulp_entry - RTC_SLOW_MEM);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "::begin: failed to start ULP: %d (%s)", err, esp_err_to_name(err));
+    }
+
     // lets monitor the touch input.
     gpio_config_t io_conf;
     io_conf.pin_bit_mask = TCH_IRQ_SEL;
@@ -139,7 +160,7 @@ void app_main()
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    esp_err_t err = gpio_config(&io_conf);
+    err = gpio_config(&io_conf);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "failed to init TOUCH IRQ pin as input: %d '%s'", err, esp_err_to_name(err));
@@ -203,6 +224,7 @@ void app_main()
             }
 
         }
-        vTaskDelay(pdMS_TO_TICKS(100));
+        //ESP_LOGI(TAG, "latency_count=%u", ulp_latency_count&0xffff);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

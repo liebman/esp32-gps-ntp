@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include <sys/time.h>
 #include <soc/soc.h>
+#include "ulp_main.h"
 
 static const char* TAG = "PPS";
 
@@ -69,6 +70,7 @@ static gpio_int_type_t next_level[2] {GPIO_INTR_HIGH_LEVEL,GPIO_INTR_LOW_LEVEL};
 
 void IRAM_ATTR PPS::pps(void* data)
 {
+    ulp_latency_flag = 1;
     PPS* pps = (PPS*)data;
     uint64_t current = esp_timer_get_time();
 #ifdef PPS_LATENCY_OUTPUT
@@ -89,6 +91,7 @@ void IRAM_ATTR PPS::pps(void* data)
     if (pps->_expect == pps->_expect_skip)
     {
         pps->_expect ^= 1;
+        ulp_latency_flag = 0;
 #ifdef PPS_LATENCY_OUTPUT
         gpio_set_level(LATENCY_PIN, 0);
 #endif
@@ -101,6 +104,7 @@ void IRAM_ATTR PPS::pps(void* data)
     // could be the first time, lets skip the statistics and time keeping in that case
     if (pps->_last_timer == 0)
     {
+        ulp_latency_flag = 0;
 #ifdef PPS_LATENCY_OUTPUT
         gpio_set_level(LATENCY_PIN, 0);
 #endif
@@ -113,6 +117,7 @@ void IRAM_ATTR PPS::pps(void* data)
     // no stats for the first few seconds
     if (pps->_time < 3)
     {
+        ulp_latency_flag = 0;
 #ifdef PPS_LATENCY_OUTPUT
         gpio_set_level(LATENCY_PIN, 0);
 #endif
@@ -140,8 +145,9 @@ void IRAM_ATTR PPS::pps(void* data)
         pps->_timer_long += 1;
         pps->_timer_max = 0;
     }
+    ulp_latency_flag = 0;
 #ifdef PPS_LATENCY_OUTPUT
-        gpio_set_level(LATENCY_PIN, 0);
+    gpio_set_level(LATENCY_PIN, 0);
 #endif
 }
 

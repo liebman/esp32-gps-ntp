@@ -20,7 +20,7 @@ set(ulp_s_sources "../ulp/i2c-ds3231.S" "../ulp/i2c-util.S" "../ulp/i2c.S" "../u
 #
 # 3. List all the component source files which include automatically
 #    generated ULP export file, ${ulp_app_name}.h:
-set(ulp_exp_dep_srcs "main.cpp")
+set(ulp_exp_dep_srcs "main.cpp PPS.cpp")
 #
 # 4. Call function to build ULP binary and embed in project using the argument
 #    values above.

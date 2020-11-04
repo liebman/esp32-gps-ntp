@@ -12,7 +12,7 @@
 #endif
 
 #ifndef DISPLAY_LV_TICK_MS
-#define DISPLAY_LV_TICK_MS 1
+#define DISPLAY_LV_TICK_MS 5
 #endif
 
 #ifndef DISPLAY_TASK_CORE
