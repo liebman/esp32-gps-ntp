@@ -65,6 +65,10 @@ bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
     return true;
 }
 
+int PPS::getLevel()
+{
+    return gpio_get_level(_pin);
+}
 
 static gpio_int_type_t next_level[2] {GPIO_INTR_HIGH_LEVEL,GPIO_INTR_LOW_LEVEL};
 

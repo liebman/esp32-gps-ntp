@@ -7,6 +7,7 @@
 #include "Display.h"
 #include "LatencyPin.h"
 #include "Network.h"
+#include "DS3231.h"
 #include "PPS.h"
 #include "GPS.h"
 #include "NTP.h"
@@ -49,7 +50,9 @@ extern "C" {
 
 static const char* TAG = "main";
 static PPS gps_pps;
+static PPS rtc_pps;
 static GPS gps;
+static DS3231 rtc;
 static NTP ntp(gps_pps);
 
 static void init(void* data)
@@ -100,6 +103,30 @@ static void init(void* data)
     new PageSats(gps);
     new PageAbout();
 
+    // initialize I2C_NUM_0 for the MCP23017T
+    err = i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "i2c_driver_install: I2C_NUM_%d %d (%s)", I2C_NUM_0, err, esp_err_to_name(err));
+    }
+    i2c_config_t conf;
+    conf.mode = I2C_MODE_MASTER;
+    conf.sda_io_num = SDA_PIN;
+    conf.scl_io_num = SCL_PIN;
+    conf.sda_pullup_en = GPIO_PULLUP_DISABLE;
+    conf.scl_pullup_en = GPIO_PULLUP_DISABLE;
+    conf.master.clk_speed = 400000;
+    err = i2c_param_config(I2C_NUM_0, &conf);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "i2c_param_config: I2C_NUM_%d %d (%s)", I2C_NUM_0, err, esp_err_to_name(err));
+    }
+
+    if (!rtc.begin())
+    {
+        ESP_LOGE(TAG, "failed to start rtc!");
+    }
+
     // start gps watching NMEA messages
     // swap rx/tx as GPS_RX is our TX!
     if (!gps.begin(GPS_RX_PIN, GPS_TX_PIN))
@@ -110,10 +137,28 @@ static void init(void* data)
     // start pps watching gps
     if (!gps_pps.begin(GPS_PPS_PIN))
     {
-        ESP_LOGE(TAG, "failed to start pps!");
+        ESP_LOGE(TAG, "failed to start GPS pps!");
     }
 
-    // start pps watching gps
+    // start pps watching rtc
+    if (!rtc_pps.begin(RTC_PPS_PIN, true))
+    {
+        ESP_LOGE(TAG, "failed to start RTC pps!");
+    }
+
+    // wait for the RTC PPS signal to be low, the first half of a secondm, so we
+    // don't do this on a second boundry as the PPS could get or miss an increment.
+    ESP_LOGI(TAG, "::DS3231 waiting for first half of a second");
+    while (rtc_pps.getLevel() != 0)
+    {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    ESP_LOGI(TAG, "::DS3231 setting time on RTC pps");
+    struct tm tm;
+    rtc.getTime(&tm);
+    rtc_pps.setTime(mktime(&tm));
+
+    // start NTP services
     ntp.begin();
 
     vTaskDelete(NULL);
