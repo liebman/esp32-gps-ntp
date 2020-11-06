@@ -22,7 +22,7 @@ static const char* TAG = "PPS";
 #endif
 
 
-PPS::PPS()
+PPS::PPS(PPS* ref) : _ref(ref)
 {
 }
 
@@ -117,6 +117,22 @@ void IRAM_ATTR PPS::pps(void* data)
 
     // increment the time
     pps->_time += 1;
+
+    if (pps->_ref != nullptr)
+    {
+        int32_t delta = pps->_ref->_last_timer - pps->_last_timer;
+        // we only care about microseconds so we will keep the delta
+        // between -500000 and 500000.  Yea, if the reference stops then this is invalid
+        if (delta > 500000)
+        {
+            delta -= 1000000;
+        }
+        else if (delta < -500000)
+        {
+            delta += 1000000;
+        }
+        pps->_offset = delta;
+    }
 
     // no stats for the first few seconds
     if (pps->_time < 3)
@@ -213,4 +229,12 @@ uint32_t PPS::getTimerShort()
 uint32_t PPS::getTimerLong()
 {
     return _timer_long;
+}
+
+/**
+ * get the offset from ref
+*/
+int32_t PPS::getOffset()
+{
+    return _offset;
 }

@@ -8,17 +8,20 @@
 
 class PagePPS {
 public:
-    PagePPS(PPS& gps_pps);
+    PagePPS(PPS& gps_pps, PPS& rtc_pps);
     ~PagePPS();
 private:
     void update();
     static void task(lv_task_t* task);
     PPS&     _gps_pps;
+    PPS&     _rtc_pps;
 
     LVPage*  _page;
     LVLabel* _gps_time;
+    LVLabel* _rtc_time;
     LVLabel* _gps_minmax;
     LVLabel* _gps_shortlong;
+    LVLabel* _rtc_offset;
     LVStyle  _container_style;
 };
 

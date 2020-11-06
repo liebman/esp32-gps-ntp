@@ -50,7 +50,7 @@ extern "C" {
 
 static const char* TAG = "main";
 static PPS gps_pps;
-static PPS rtc_pps;
+static PPS rtc_pps(&gps_pps); // use gps_pps as ref.
 static GPS gps;
 static DS3231 rtc;
 static NTP ntp(gps_pps);
@@ -98,7 +98,7 @@ static void init(void* data)
     // turn the backlight on.
     gpio_set_level(TFT_LED_PIN, 1);
 
-    new PagePPS(gps_pps);
+    new PagePPS(gps_pps, rtc_pps);
     new PageGPS(gps);
     new PageSats(gps);
     new PageAbout();
@@ -270,6 +270,6 @@ void app_main()
 
         }
         //ESP_LOGI(TAG, "latency_count=%u", ulp_latency_count&0xffff);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

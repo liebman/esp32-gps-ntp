@@ -9,8 +9,9 @@
 
 static const char* TAG = "PagePPS";
 
-PagePPS::PagePPS(PPS& gps_pps)
-: _gps_pps(gps_pps)
+PagePPS::PagePPS(PPS& gps_pps, PPS& rtc_pps)
+: _gps_pps(gps_pps),
+  _rtc_pps(rtc_pps)
 {
     WithDisplayLock([this](){
         _container_style.setPadInner(LV_STATE_DEFAULT, LV_DPX(2));
@@ -29,10 +30,12 @@ PagePPS::PagePPS(PPS& gps_pps)
         cont->align(nullptr, LV_ALIGN_CENTER, 0, 0);
         cont->setDragParent(true);
 
-        _gps_time     = new LVLabel(cont);
-        _gps_minmax   = new LVLabel(cont);
+        _gps_time      = new LVLabel(cont);
+        _rtc_time      = new LVLabel(cont);
+        _gps_minmax    = new LVLabel(cont);
         _gps_shortlong = new LVLabel(cont);
-    
+        _rtc_offset    = new LVLabel(cont);
+
         ESP_LOGI(TAG, "creating task");
         lv_task_create(task, 100, LV_TASK_PRIO_LOW, this);
     });
@@ -65,11 +68,18 @@ void PagePPS::update()
     fmtTime("GPS PPS: ", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
     _gps_time->setText(buf);
 
-    snprintf(buf, sizeof(buf)-1, "Min/Max: %06u / %07u",
+    _rtc_pps.getTime(&tv);
+    fmtTime("RTC PPS: ", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
+    _rtc_time->setText(buf);
+
+    snprintf(buf, sizeof(buf)-1, "GPS Min/Max: %06u / %07u",
             _gps_pps.getTimerMin(),_gps_pps.getTimerMax());
     _gps_minmax->setText(buf);
 
     snprintf(buf, sizeof(buf)-1, "Short/Long: %u / %u",
             _gps_pps.getTimerShort(), _gps_pps.getTimerLong());
     _gps_shortlong->setText(buf);
+
+    snprintf(buf, sizeof(buf)-1, "RTC Offset: %d", _rtc_pps.getOffset());
+    _rtc_offset->setText(buf);
 }
