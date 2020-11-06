@@ -9,7 +9,7 @@
 static const char* TAG = "GPS";
 
 #ifndef GPS_TASK_PRI
-#define GPS_TASK_PRI configMAX_PRIORITIES-1
+#define GPS_TASK_PRI (configMAX_PRIORITIES/2)
 #endif
 
 #ifndef GPS_TASK_CORE
