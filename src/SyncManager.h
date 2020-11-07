@@ -31,6 +31,13 @@ private:
     time_t          _drift_start_time   = 0; // start of drift timeing (if 0 means no initial sample)
     int32_t         _drift_start_offset = 0; // initial drift offset sample
     time_t          _last_manage_drift  = 0;
+    uint32_t        _offset_index        = 0;
+    uint32_t        _offset_count        = 0;
+    static const uint32_t OFFSET_DATA_SIZE = 10;
+    int32_t         _offset_data[OFFSET_DATA_SIZE];
+
+    void recordOffset();
+    void resetOffset();
     void manageDrift();
     void process();
     void setTime(int32_t delta);

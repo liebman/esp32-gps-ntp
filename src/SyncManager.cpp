@@ -48,11 +48,6 @@ void SyncManager::getGPSPPSTime(struct timeval* tv)
     _gpspps.getTime(tv);
 }
 
-int32_t SyncManager::getOffset()
-{
-    return _rtcpps.getOffset();
-}
-
 double SyncManager::getDrift()
 {
     return _drift;
@@ -63,9 +58,65 @@ uint32_t SyncManager::getUptime()
     return (esp_timer_get_time() / 1000000);
 }
 
+void SyncManager::recordOffset()
+{
+    static time_t last_rtc = 0;
+    static time_t last_gps = 0;
+    time_t rtc_time = _rtcpps.getTime(nullptr);
+    time_t gps_time = _gpspps.getTime(nullptr);
+
+    // we want a chaneg in both second counters before we take a new sample
+    if (gps_time == last_gps || rtc_time == last_rtc)
+    {
+        return;
+    }
+
+    last_rtc = rtc_time;
+    last_gps = gps_time;
+
+    _offset_data[_offset_index++] = _rtcpps.getOffset();
+
+    if (_offset_index >= OFFSET_DATA_SIZE)
+    {
+        _offset_index = 0;
+    }
+
+    if (_offset_count < OFFSET_DATA_SIZE)
+    {
+        _offset_count += 1;
+    }
+}
+
+/**
+ * return the average offset.  0 is returnerd if the offset data is not full.
+*/
+int32_t SyncManager::getOffset()
+{
+    if (_offset_count < OFFSET_DATA_SIZE)
+    {
+        return 0;
+    }
+
+    int32_t total = 0;
+    for(uint32_t i = 0; i < _offset_count; ++i)
+    {
+        total += _offset_data[i];
+    }
+
+    int32_t offset = total / (int32_t)OFFSET_DATA_SIZE;
+    return offset;
+}
+
+void SyncManager::resetOffset()
+{
+    _offset_index = 0;
+    _offset_count = 0;
+    //_rtcpps.resetOffset();
+}
+
 void SyncManager::manageDrift()
 {
-    int32_t offset = _rtcpps.getOffset();
+    int32_t offset = getOffset();
     time_t  now = time(nullptr); // we only need simple incrementing seconds
 
     //
@@ -100,6 +151,7 @@ void SyncManager::manageDrift()
 
 void SyncManager::process()
 {
+    recordOffset();
     struct timeval gps_tv;
     struct timeval rtc_tv;
     _gpspps.getTime(&gps_tv);
@@ -124,7 +176,7 @@ void SyncManager::process()
             _rtcpps.getTime(&tv);
             settimeofday(&tv, nullptr);
             _drift_start_time = 0; // reset any in-progress drift sample as its invalid when we set the time
-            _rtcpps.resetOffset();
+            resetOffset();
         }
     }
     else

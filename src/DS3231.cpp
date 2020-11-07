@@ -47,8 +47,11 @@ bool DS3231::begin()
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
     updateReg(HOURS, 0, DS3231_12HR);
+#if 1
     writeReg(AGEOFFSET, 0);
     updateReg(CONTROL, CONV, CONV);
+#endif
+
     return true;
 }
 

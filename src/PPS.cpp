@@ -179,8 +179,13 @@ void IRAM_ATTR PPS::pps(void* data)
 /**
  * get current time & microseconds.
 */
-void PPS::getTime(struct timeval* tv)
+time_t PPS::getTime(struct timeval* tv)
 {
+    if (tv == nullptr)
+    {
+        return _time;
+    }
+
     // edge case!  both seconds and _last_timer only change once a second, however,
     // it changes via an interrupt so we make sure we have good values by making sure
     // it is the same on second look
@@ -194,6 +199,7 @@ void PPS::getTime(struct timeval* tv)
             tv->tv_usec = 999999;
         }
     } while (tv->tv_sec != _time); // insure we stay on the same seconds (to go with the microseconds)
+    return tv->tv_sec;
 }
 
 /**
