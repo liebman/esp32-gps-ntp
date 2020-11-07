@@ -23,6 +23,7 @@ public:
     
     bool getTime(struct tm* tm);
     bool setTime(struct tm* tm);
+    void adjustDrift(double drift); // in PPM
 
 protected:
     const uint8_t DS3231_ADDR       = 0x68;
@@ -79,7 +80,6 @@ protected:
     bool write(Register reg, size_t len, uint8_t* value);
     bool readReg(Register reg, uint8_t* value);
     bool read(Register reg, size_t len, uint8_t* value);
-
 private:
     i2c_port_t         _i2c;
     SemaphoreHandle_t  _lock = nullptr;

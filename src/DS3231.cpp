@@ -47,7 +47,8 @@ bool DS3231::begin()
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
     updateReg(HOURS, 0, DS3231_12HR);
-
+    writeReg(AGEOFFSET, 0);
+    updateReg(CONTROL, CONV, CONV);
     return true;
 }
 
@@ -106,6 +107,34 @@ bool DS3231::setTime(struct tm* time)
     gpio_set_level(LATENCY_PIN, 0);
 #endif
     return ret;
+}
+
+void DS3231::adjustDrift(double drift)
+{
+    int8_t old;
+    if (!readReg(AGEOFFSET, (uint8_t*)&old))
+    {
+        ESP_LOGE(TAG, "failed to read AGEOFFSET register!");
+        return;
+    }
+    int16_t aging = (int)(drift*10) + old;
+    if (aging > 127)
+    {
+        aging = 127;
+    }
+    else if (aging < -127)
+    {
+        aging = -127;
+    }
+    ESP_LOGI(TAG, "::adjustDrift: drift=%0.3f old=%d new=%d", drift, old, aging);
+    if (!writeReg(AGEOFFSET, (uint8_t)aging))
+    {
+        ESP_LOGE(TAG, "failed to write AGEOFFSET register!");
+    }
+    if (!updateReg(CONTROL, CONV, CONV))
+    {
+        ESP_LOGE(TAG, "failed to start conversion!");
+    }
 }
 
 bool DS3231::updateReg(Register reg, uint8_t value, uint8_t mask)

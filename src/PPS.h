@@ -20,6 +20,8 @@ public:
     uint32_t getTimerShort();
     uint32_t getTimerLong();
     int32_t  getOffset();
+    void     resetOffset();
+    void     setDisable(bool disable);
 
 protected:
     PPS*        _ref;
@@ -33,7 +35,7 @@ protected:
     volatile uint32_t _timer_short  = 0;
     volatile uint32_t _timer_long   = 0;
     volatile int32_t  _offset       = 0;
-
+    volatile bool     _disabled     = false;
 private:
     static void pps(void* data);
 

@@ -104,6 +104,11 @@ void IRAM_ATTR PPS::pps(void* data)
     pps->_expect ^= 1;
 
     pps->_last_timer = current;
+    if (pps->_disabled)
+    {
+        ulp_latency_flag = 0;
+        return;
+    }
 
     // could be the first time, lets skip the statistics and time keeping in that case
     if (pps->_last_timer == 0)
@@ -120,7 +125,7 @@ void IRAM_ATTR PPS::pps(void* data)
 
     if (pps->_ref != nullptr)
     {
-        int32_t delta = pps->_ref->_last_timer - pps->_last_timer;
+        int32_t delta = pps->_last_timer - pps->_ref->_last_timer;
         // we only care about microseconds so we will keep the delta
         // between -500000 and 500000.  Yea, if the reference stops then this is invalid
         if (delta > 500000)
@@ -237,4 +242,20 @@ uint32_t PPS::getTimerLong()
 int32_t PPS::getOffset()
 {
     return _offset;
+}
+
+/**
+ * reset the offset from ref
+*/
+void PPS::resetOffset()
+{
+    _offset = 0;
+}
+
+/**
+ * set disabled preventing the ISR from counting
+*/
+void PPS::setDisable(bool disable)
+{
+    _disabled = disable;
 }

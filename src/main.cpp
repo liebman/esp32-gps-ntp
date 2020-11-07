@@ -15,6 +15,7 @@
 
 #include "PageAbout.h"
 #include "PagePPS.h"
+#include "PageSync.h"
 #include "PageGPS.h"
 #include "PageSats.h"
 
@@ -100,11 +101,6 @@ static void init(void* data)
     // turn the backlight on.
     gpio_set_level(TFT_LED_PIN, 1);
 
-    new PagePPS(gps_pps, rtc_pps);
-    new PageGPS(gps);
-    new PageSats(gps);
-    new PageAbout();
-
     // initialize I2C_NUM_0 for the MCP23017T
     err = i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
     if (err != ESP_OK)
@@ -165,6 +161,12 @@ static void init(void* data)
 
     // start the sync manager
     syncman.begin();
+
+    new PageSync(syncman);
+    new PagePPS(gps_pps, rtc_pps);
+    new PageGPS(gps);
+    new PageSats(gps);
+    new PageAbout();
 
     vTaskDelete(NULL);
 }

@@ -33,6 +33,71 @@ bool SyncManager::begin()
     return true;
 }
 
+time_t SyncManager::getRTCTime()
+{
+    return _rtc_time;
+}
+
+void SyncManager::getRTCPPSTime(struct timeval* tv)
+{
+    _rtcpps.getTime(tv);
+}
+
+void SyncManager::getGPSPPSTime(struct timeval* tv)
+{
+    _gpspps.getTime(tv);
+}
+
+int32_t SyncManager::getOffset()
+{
+    return _rtcpps.getOffset();
+}
+
+double SyncManager::getDrift()
+{
+    return _drift;
+}
+
+uint32_t SyncManager::getUptime()
+{
+    return (esp_timer_get_time() / 1000000);
+}
+
+void SyncManager::manageDrift()
+{
+    int32_t offset = _rtcpps.getOffset();
+    time_t  now = time(nullptr); // we only need simple incrementing seconds
+
+    //
+    // if drift start time is 0 then we have no initial sample take it now
+    //
+    if (_drift_start_time == 0)
+    {
+        // only initialize on a non-zero offset
+        if (offset != 0)
+        {
+            ESP_LOGI(TAG, "::manageDrift: reset calculation base with start offset=%d", offset);
+            _drift_start_offset = offset;
+            _drift_start_time = now;
+        }
+        return;
+    }
+
+    // not in PPM yet
+    int32_t raw_drift = _drift_start_offset - offset;
+    uint32_t interval = now - _drift_start_time;
+
+    // raw_drift of more than 10us gets us to compute drift no more than once a minute
+    if (interval >= 60 && abs(raw_drift) >= 10)
+    {
+        _drift = (double)raw_drift / (double)interval;
+        ESP_LOGI(TAG, "::manageDrift: inteval=%u raw_drift=%d drift=%0.3f", interval, raw_drift, _drift);
+        _drift_start_offset = offset;
+        _drift_start_time = now;
+        _rtc.adjustDrift(_drift);
+    }
+}
+
 void SyncManager::process()
 {
     struct timeval gps_tv;
@@ -51,14 +116,23 @@ void SyncManager::process()
         _gpspps.getTime(&gps_tv);
         _rtcpps.getTime(&rtc_tv);
 
-        if (abs(delta) > RTC_DRIFT_MAX || gps_tv.tv_sec != rtc_tv.tv_sec)
+        if (abs(delta) > RTC_DRIFT_MAX /*|| gps_tv.tv_sec != rtc_tv.tv_sec*/)
         {
             setTime(delta);
             ESP_LOGI(TAG, "time correction happened!  PPS delta=%dus gps_time=%ld rtc_time%ld", delta, gps_tv.tv_sec, rtc_tv.tv_sec);
             struct timeval tv;
             _rtcpps.getTime(&tv);
             settimeofday(&tv, nullptr);
+            _drift_start_time = 0; // reset any in-progress drift sample as its invalid when we set the time
+            _rtcpps.resetOffset();
         }
+    }
+    else
+    {
+        manageDrift();
+        struct tm tm;
+        _rtc.getTime(&tm);
+        _rtc_time = mktime(&tm);
     }
 }
 
@@ -66,6 +140,10 @@ void SyncManager::task(void* data)
 {
     ESP_LOGI(TAG, "::task - starting!");
     SyncManager* syncman = (SyncManager*)data;
+    //we dont start for a few seconds so that times can be set and initial seconds and offsets are computed
+
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
     while(true)
     {
         syncman->process();
@@ -89,10 +167,13 @@ void SyncManager::setTime(int32_t delta)
     gpio_set_level(LATENCY_PIN, 1);
 #endif
 
-    if (delta < 0)
-    {
-        tv.tv_sec += 1; // we are targeting the next second
-    }
+    // we are targeting the next second
+    tv.tv_sec += 1; 
+
+    // disable time incrementing in the RTC PPS so we dont accidentally increment
+    // then set the RTC PPS counter time. It wil be re-enabled after the RTC has been set
+    _rtcpps.setDisable(true);
+    _rtcpps.setTime(tv.tv_sec);
 
     struct tm* tm = gmtime(&tv.tv_sec);
     if (!_rtc.setTime(tm))
@@ -103,6 +184,7 @@ void SyncManager::setTime(int32_t delta)
         ESP_LOGE(TAG, "setTime: failed to set time for DS3231");
         return;
     }
+    _rtcpps.setDisable(false);
 
 #ifdef SYNC_LATENCY_OUTPUT
     gpio_set_level(LATENCY_PIN, 0);
