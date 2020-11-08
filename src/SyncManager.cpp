@@ -65,7 +65,7 @@ void SyncManager::recordOffset()
     time_t rtc_time = _rtcpps.getTime(nullptr);
     time_t gps_time = _gpspps.getTime(nullptr);
 
-    // we want a chaneg in both second counters before we take a new sample
+    // we want a change in both second counters before we take a new sample
     if (gps_time == last_gps || rtc_time == last_rtc)
     {
         return;
@@ -111,7 +111,8 @@ void SyncManager::resetOffset()
 {
     _offset_index = 0;
     _offset_count = 0;
-    //_rtcpps.resetOffset();
+    // reset any in-progress drift sample as its invalid when we set the or finish adjusting
+    _drift_start_time = 0;
 }
 
 void SyncManager::manageDrift(int32_t offset)
@@ -148,10 +149,44 @@ void SyncManager::manageDrift(int32_t offset)
     }
 }
 
+void SyncManager::endAdjust()
+{
+    _adjusting = false;
+    resetOffset();
+    _rtc.setAgeOffset(_saved_ageoff);
+}
+
+void SyncManager::manageAdjust(int32_t offset)
+{
+    if (_adjusting)
+    {
+        if (abs(offset) < 50)
+        {
+            ESP_LOGI(TAG, "::manageAdjust: end adjust with offset=%d", offset);
+            endAdjust();
+        }
+        return;
+    }
+
+    ESP_LOGI(TAG, "::manageAdjust: start adjust with offset=%d", offset);
+
+    _adjusting = true;
+    _saved_ageoff = _rtc.getAgeOffset();
+    double drift = offset < 0 ? 3.0 : -3.0;
+    _rtc.adjustDrift(drift);
+}
+
 void SyncManager::process()
 {
+    // update value of RTC for display
+
+    struct tm tm;
+    _rtc.getTime(&tm);
+    _rtc_time = mktime(&tm);
+
     recordOffset();
-    int32_t offset = _rtcpps.getOffset();
+    int32_t offset = getOffset();
+
     struct timeval gps_tv;
     struct timeval rtc_tv;
     _gpspps.getTime(&gps_tv);
@@ -169,21 +204,30 @@ void SyncManager::process()
 
         if (abs(offset) > RTC_DRIFT_MAX /*|| gps_tv.tv_sec != rtc_tv.tv_sec*/)
         {
+            if (_adjusting)
+            {
+                ESP_LOGI(TAG, "::process: end adjust with offset=%d time will be set!", offset);
+                endAdjust();
+            }
             setTime(offset);
             ESP_LOGI(TAG, "time correction happened!  PPS offset=%dus gps_time=%ld rtc_time%ld", offset, gps_tv.tv_sec, rtc_tv.tv_sec);
             struct timeval tv;
             _rtcpps.getTime(&tv);
             settimeofday(&tv, nullptr);
-            _drift_start_time = 0; // reset any in-progress drift sample as its invalid when we set the time
             resetOffset();
         }
+
+        return;
+    }
+
+    // if we are adjusting or need to start adjusting
+    if (_adjusting || abs(offset) > 200)
+    {
+        manageAdjust(offset);
         return;
     }
 
     manageDrift(offset);
-    struct tm tm;
-    _rtc.getTime(&tm);
-    _rtc_time = mktime(&tm);
 }
 
 void SyncManager::task(void* data)

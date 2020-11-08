@@ -35,9 +35,13 @@ private:
     uint32_t        _offset_count        = 0;
     static const uint32_t OFFSET_DATA_SIZE = 10;
     int32_t         _offset_data[OFFSET_DATA_SIZE];
+    bool            _adjusting           = false;
+    int8_t          _saved_ageoff        = 0;
 
     void recordOffset();
     void resetOffset();
+    void endAdjust();
+    void manageAdjust(int32_t offset);
     void manageDrift(int32_t offset);
     void process();
     void setTime(int32_t delta);

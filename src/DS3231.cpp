@@ -46,6 +46,14 @@ bool DS3231::begin()
 
     _age_offset = (int8_t)data[AGEOFFSET];
 
+    //
+    // if the age offset is outside a normal range then zero it!
+    //  (30 is ~ 3ppm)
+    if (abs(_age_offset) >= 30)
+    {
+        setAgeOffset(0);        
+    }
+
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
     updateReg(HOURS, 0, DS3231_12HR);
