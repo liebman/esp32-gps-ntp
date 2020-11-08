@@ -180,7 +180,7 @@ void NTP::task(void* data)
 
         while(true)
         {
-            ESP_LOGI(TAG, "Waiting for data");
+            ESP_LOGD(TAG, "Waiting for data");
             struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
             socklen_t socklen = sizeof(source_addr);
             int len = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&source_addr, &socklen);
@@ -207,7 +207,7 @@ void NTP::task(void* data)
             {
                 inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
             }
-            ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+            ESP_LOGD(TAG, "Received %d bytes from %s:", len, addr_str);
 
             packet.delay              = ntohl(packet.delay);
             packet.dispersion         = ntohl(packet.dispersion);

@@ -120,7 +120,16 @@ void DS3231::adjustDrift(double drift)
         ESP_LOGE(TAG, "failed to read AGEOFFSET register!");
         return;
     }
-    int16_t aging = (int)(drift*10) + old;
+
+    int16_t adjustment = (int16_t)(drift * 10.0 + (drift < 0 ? -1.0 : 1.0));
+
+    int16_t aging = old + adjustment;
+
+    if (aging == old)
+    {
+        return;
+    }
+
     if (aging > 127)
     {
         aging = 127;
@@ -129,7 +138,7 @@ void DS3231::adjustDrift(double drift)
     {
         aging = -127;
     }
-    ESP_LOGI(TAG, "::adjustDrift: drift=%0.3f old=%d new=%d", drift, old, aging);
+    ESP_LOGI(TAG, "::adjustDrift: drift=%0.3f old=%d new=%d adjustment=%d", drift, old, aging, adjustment);
     if (!writeReg(AGEOFFSET, (uint8_t)aging))
     {
         ESP_LOGE(TAG, "failed to write AGEOFFSET register!");
