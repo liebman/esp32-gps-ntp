@@ -140,14 +140,14 @@ void SyncManager::manageDrift(int32_t offset)
         return;
     }
 
-    // not in PPM yet
-    int32_t raw_drift = _drift_start_offset - offset;
     uint32_t interval = now - _drift_start_time;
 
     // no more than once a minute
     if (interval >= 60)
     {
         bool adjust = false;
+        // not in PPM yet
+        int32_t raw_drift = _drift_start_offset - offset;
         if (abs(raw_drift) > 10) // raw_drift of more than 10us gets us to compute drift
         {
             adjust = true;
@@ -166,17 +166,12 @@ void SyncManager::manageDrift(int32_t offset)
         if (adjust)
         {
             _drift = (double)raw_drift / (double)interval;
-            ESP_LOGI(TAG, "::manageDrift: offset=%d inteval=%u raw_drift=%d drift=%0.3f drift_offset=%0.3f", offset, interval, raw_drift, _drift, _drift_adjust);
+            ESP_LOGI(TAG, "::manageDrift: offset=%d inteval=%u raw_drift=%d drift=%0.3f drift_adjust=%0.3f", offset, interval, raw_drift, _drift, _drift_adjust);
             _drift_start_offset = offset;
             _drift_start_time = now;
             _rtc.adjustDrift(_drift+_drift_adjust);
 
         }
-    }
-
-    if (interval >= 60 && (abs(raw_drift) >= 10 || abs(offset) > 50))
-    {
-        _drift_adjust = -offset / 100.0;
     }
 }
 
@@ -194,19 +189,20 @@ void SyncManager::process()
     struct timeval gps_tv;
     struct timeval rtc_tv;
     _gpspps.getTime(&gps_tv);
+    _rtcpps.getTime(&rtc_tv);
+ 
+    uint32_t interval = gps_tv.tv_sec - _last_time;
+
     // ~10 sec but only if GPS is valid and not too close to the start or end of a second!
     if (gps_tv.tv_usec > 800000
         && gps_tv.tv_usec < 900000
         && _gps.getValid()
-        && (gps_tv.tv_sec - _last_time) > 10)
+        && interval > 10)
     {
         ESP_LOGD(TAG, "pps offset %d", offset);
         _last_time = gps_tv.tv_sec;
 
-        _gpspps.getTime(&gps_tv);
-        _rtcpps.getTime(&rtc_tv);
-
-        if (abs(offset) > RTC_DRIFT_MAX /*|| gps_tv.tv_sec != rtc_tv.tv_sec*/)
+        if (abs(offset) > RTC_DRIFT_MAX || gps_tv.tv_sec != rtc_tv.tv_sec)
         {
             setTime(offset);
             ESP_LOGI(TAG, "time correction happened!  PPS offset=%dus gps_time=%ld rtc_time%ld", offset, gps_tv.tv_sec, rtc_tv.tv_sec);
@@ -215,7 +211,6 @@ void SyncManager::process()
             settimeofday(&tv, nullptr);
             resetOffset();
         }
-
         return;
     }
 
