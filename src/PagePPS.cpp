@@ -34,6 +34,8 @@ PagePPS::PagePPS(PPS& gps_pps, PPS& rtc_pps)
         _rtc_time      = new LVLabel(cont);
         _gps_minmax    = new LVLabel(cont);
         _gps_shortlong = new LVLabel(cont);
+        _rtc_minmax    = new LVLabel(cont);
+        _rtc_shortlong = new LVLabel(cont);
         _rtc_offset    = new LVLabel(cont);
 
         ESP_LOGI(TAG, "creating task");
@@ -79,6 +81,14 @@ void PagePPS::update()
     snprintf(buf, sizeof(buf)-1, "Short/Long: %u / %u",
             _gps_pps.getTimerShort(), _gps_pps.getTimerLong());
     _gps_shortlong->setText(buf);
+
+    snprintf(buf, sizeof(buf)-1, "RTC Min/Max: %06u / %07u",
+            _rtc_pps.getTimerMin(),_rtc_pps.getTimerMax());
+    _rtc_minmax->setText(buf);
+
+    snprintf(buf, sizeof(buf)-1, "Short/Long: %u / %u",
+            _rtc_pps.getTimerShort(), _rtc_pps.getTimerLong());
+    _rtc_shortlong->setText(buf);
 
     snprintf(buf, sizeof(buf)-1, "RTC Offset: %d", _rtc_pps.getOffset());
     _rtc_offset->setText(buf);
