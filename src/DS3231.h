@@ -23,6 +23,9 @@ public:
     
     bool getTime(struct tm* tm);
     bool setTime(struct tm* tm);
+
+    int8_t getAgeOffset();
+    bool setAgeOffset(int8_t ageoff);
     void adjustDrift(double drift); // in PPM
 
 protected:
@@ -83,6 +86,7 @@ protected:
 private:
     i2c_port_t         _i2c;
     SemaphoreHandle_t  _lock = nullptr;
+    int8_t             _age_offset = 0;
 };
 
 #endif // _DS3231_H

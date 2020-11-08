@@ -44,9 +44,12 @@ bool DS3231::begin()
     ESP_LOGI(TAG, "status:  0x%02x", data[STATUS]);
     ESP_LOGI(TAG, "aging:   %d",     (int8_t)data[AGEOFFSET]);
 
+    _age_offset = (int8_t)data[AGEOFFSET];
+
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
     updateReg(HOURS, 0, DS3231_12HR);
+
 #if 0
     writeReg(AGEOFFSET, 0);
     updateReg(CONTROL, CONV, CONV);
@@ -112,26 +115,44 @@ bool DS3231::setTime(struct tm* time)
     return ret;
 }
 
+int8_t DS3231::getAgeOffset()
+{
+    return _age_offset;
+}
+
+bool DS3231::setAgeOffset(int8_t ageoff)
+{
+    if (!writeReg(AGEOFFSET, (uint8_t)ageoff))
+    {
+        ESP_LOGE(TAG, "failed to write AGEOFFSET register!");
+        return false;
+    }
+
+    _age_offset = ageoff;
+
+    if (!updateReg(CONTROL, CONV, CONV))
+    {
+        ESP_LOGE(TAG, "failed to start conversion!");
+        return false;
+    }
+
+    return true;
+}
+
 void DS3231::adjustDrift(double drift)
 {
-    int8_t old;
-    if (!readReg(AGEOFFSET, (uint8_t*)&old))
-    {
-        ESP_LOGE(TAG, "failed to read AGEOFFSET register!");
-        return;
-    }
 
     // rule of thumb is ~ 0.1ppm per increment, we push a little extra so its mostly balamced
     // +/- 0.5 would be rounding so we use +/- 1.0 so we will over correct slightly in
     // each direction.
     int16_t adjustment = (int16_t)(drift * 10.0 + (drift < 0 ? -1.0 : 1.0));
 
-    int16_t aging = old + adjustment;
-
-    if (aging == old)
+    if (adjustment == 0)
     {
         return;
     }
+
+    int16_t aging = _age_offset + adjustment;
 
     if (aging > 127)
     {
@@ -141,15 +162,10 @@ void DS3231::adjustDrift(double drift)
     {
         aging = -127;
     }
-    ESP_LOGI(TAG, "::adjustDrift: drift=%0.3f old=%d new=%d adjustment=%d", drift, old, aging, adjustment);
-    if (!writeReg(AGEOFFSET, (uint8_t)aging))
-    {
-        ESP_LOGE(TAG, "failed to write AGEOFFSET register!");
-    }
-    if (!updateReg(CONTROL, CONV, CONV))
-    {
-        ESP_LOGE(TAG, "failed to start conversion!");
-    }
+
+    ESP_LOGI(TAG, "::adjustDrift: drift=%0.3f old=%d new=%d adjustment=%d", drift, _age_offset, aging, adjustment);
+
+    setAgeOffset(aging);
 }
 
 bool DS3231::updateReg(Register reg, uint8_t value, uint8_t mask)
