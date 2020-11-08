@@ -171,7 +171,7 @@ void DS3231::adjustDrift(double drift)
         aging = -127;
     }
 
-    ESP_LOGI(TAG, "::adjustDrift: drift=%0.3f old=%d new=%d adjustment=%d", drift, _age_offset, aging, adjustment);
+    ESP_LOGI(TAG, "::adjustDrift: drift=%0.3f old=%d adjustment=%d new=%d", drift, _age_offset, adjustment, aging);
 
     setAgeOffset(aging);
 }

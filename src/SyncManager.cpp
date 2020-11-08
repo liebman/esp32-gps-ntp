@@ -53,6 +53,11 @@ double SyncManager::getDrift()
     return _drift;
 }
 
+double SyncManager::getDriftAdjust()
+{
+    return _drift_adjust;
+}
+
 uint32_t SyncManager::getUptime()
 {
     return (esp_timer_get_time() / 1000000);
@@ -113,6 +118,7 @@ void SyncManager::resetOffset()
     _offset_count = 0;
     // reset any in-progress drift sample as its invalid when we set the or finish adjusting
     _drift_start_time = 0;
+    _drift_adjust = 0.0;
 }
 
 void SyncManager::manageDrift(int32_t offset)
@@ -138,42 +144,40 @@ void SyncManager::manageDrift(int32_t offset)
     int32_t raw_drift = _drift_start_offset - offset;
     uint32_t interval = now - _drift_start_time;
 
-    // raw_drift of more than 10us gets us to compute drift no more than once a minute
-    if (interval >= 60 && abs(raw_drift) >= 10)
+    // no more than once a minute
+    if (interval >= 60)
     {
-        _drift = (double)raw_drift / (double)interval;
-        ESP_LOGI(TAG, "::manageDrift: inteval=%u raw_drift=%d drift=%0.3f", interval, raw_drift, _drift);
-        _drift_start_offset = offset;
-        _drift_start_time = now;
-        _rtc.adjustDrift(_drift);
-    }
-}
-
-void SyncManager::endAdjust()
-{
-    _adjusting = false;
-    resetOffset();
-    _rtc.setAgeOffset(_saved_ageoff);
-}
-
-void SyncManager::manageAdjust(int32_t offset)
-{
-    if (_adjusting)
-    {
-        if (abs(offset) < 50)
+        bool adjust = false;
+        if (abs(raw_drift) > 10) // raw_drift of more than 10us gets us to compute drift
         {
-            ESP_LOGI(TAG, "::manageAdjust: end adjust with offset=%d", offset);
-            endAdjust();
+            adjust = true;
         }
-        return;
+        else if (abs(offset) > 50) // if offset is too far, start adjust
+        {
+            adjust = true;
+            _drift_adjust = -offset / 100.0;
+        }
+        else if (_drift_adjust != 0.0 && abs(offset) < 30)
+        {
+            adjust = true;
+            _drift_adjust = 0.0;
+        }
+
+        if (adjust)
+        {
+            _drift = (double)raw_drift / (double)interval;
+            ESP_LOGI(TAG, "::manageDrift: offset=%d inteval=%u raw_drift=%d drift=%0.3f drift_offset=%0.3f", offset, interval, raw_drift, _drift, _drift_adjust);
+            _drift_start_offset = offset;
+            _drift_start_time = now;
+            _rtc.adjustDrift(_drift+_drift_adjust);
+
+        }
     }
 
-    ESP_LOGI(TAG, "::manageAdjust: start adjust with offset=%d", offset);
-
-    _adjusting = true;
-    _saved_ageoff = _rtc.getAgeOffset();
-    double drift = offset < 0 ? 3.0 : -3.0;
-    _rtc.adjustDrift(drift);
+    if (interval >= 60 && (abs(raw_drift) >= 10 || abs(offset) > 50))
+    {
+        _drift_adjust = -offset / 100.0;
+    }
 }
 
 void SyncManager::process()
@@ -204,11 +208,6 @@ void SyncManager::process()
 
         if (abs(offset) > RTC_DRIFT_MAX /*|| gps_tv.tv_sec != rtc_tv.tv_sec*/)
         {
-            if (_adjusting)
-            {
-                ESP_LOGI(TAG, "::process: end adjust with offset=%d time will be set!", offset);
-                endAdjust();
-            }
             setTime(offset);
             ESP_LOGI(TAG, "time correction happened!  PPS offset=%dus gps_time=%ld rtc_time%ld", offset, gps_tv.tv_sec, rtc_tv.tv_sec);
             struct timeval tv;
@@ -217,13 +216,6 @@ void SyncManager::process()
             resetOffset();
         }
 
-        return;
-    }
-
-    // if we are adjusting or need to start adjusting
-    if (_adjusting || abs(offset) > 200)
-    {
-        manageAdjust(offset);
         return;
     }
 

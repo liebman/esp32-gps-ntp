@@ -16,9 +16,12 @@ public:
     void     getGPSPPSTime(struct timeval* tv);
     int32_t  getOffset();
     double   getDrift();
+    double   getDriftAdjust();
     uint32_t getUptime();
 
 private:
+    static const uint32_t OFFSET_DATA_SIZE = 10;
+    int32_t         _offset_data[OFFSET_DATA_SIZE];
     GPS&            _gps;
     DS3231&         _rtc;
     PPS&            _gpspps;
@@ -28,20 +31,15 @@ private:
     volatile time_t _last_time          = 0;
     volatile time_t _rtc_time           = 0;
     volatile double _drift              = 0; // in parts per million
+    volatile double _drift_adjust       = 0.0;
     time_t          _drift_start_time   = 0; // start of drift timeing (if 0 means no initial sample)
     int32_t         _drift_start_offset = 0; // initial drift offset sample
     time_t          _last_manage_drift  = 0;
-    uint32_t        _offset_index        = 0;
-    uint32_t        _offset_count        = 0;
-    static const uint32_t OFFSET_DATA_SIZE = 10;
-    int32_t         _offset_data[OFFSET_DATA_SIZE];
-    bool            _adjusting           = false;
-    int8_t          _saved_ageoff        = 0;
+    uint32_t        _offset_index       = 0;
+    uint32_t        _offset_count       = 0;
 
     void recordOffset();
     void resetOffset();
-    void endAdjust();
-    void manageAdjust(int32_t offset);
     void manageDrift(int32_t offset);
     void process();
     void setTime(int32_t delta);
