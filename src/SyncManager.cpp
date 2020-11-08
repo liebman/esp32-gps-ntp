@@ -152,7 +152,7 @@ void SyncManager::manageDrift(int32_t offset)
         {
             adjust = true;
         }
-        else if (abs(offset) > 50) // if offset is too far, start adjust
+        if (abs(offset) > 50) // if offset is too far, start adjust
         {
             adjust = true;
             _drift_adjust = -offset / 100.0;
