@@ -146,12 +146,13 @@ static void init(void* data)
 
     // wait for the RTC PPS signal to be low, the first half of a secondm, so we
     // don't do this on a second boundry as the PPS could get or miss an increment.
-    ESP_LOGI(TAG, "::DS3231 waiting for first half of a second");
-    while (rtc_pps.getLevel() != 0)
+    ESP_LOGI(TAG, " waiting a change in seconds");
+    time_t now = rtc_pps.getTime(nullptr);
+    while(rtc_pps.getTime(nullptr) == now)
     {
         vTaskDelay(pdMS_TO_TICKS(50));
     }
-    ESP_LOGI(TAG, "::DS3231 setting time on RTC pps");
+    ESP_LOGI(TAG, "setting time on RTC pps");
     struct tm tm;
     rtc.getTime(&tm);
     rtc_pps.setTime(mktime(&tm));

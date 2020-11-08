@@ -121,6 +121,9 @@ void DS3231::adjustDrift(double drift)
         return;
     }
 
+    // rule of thumb is ~ 0.1ppm per increment, we push a little extra so its mostly balamced
+    // +/- 0.5 would be rounding so we use +/- 1.0 so we will over correct slightly in
+    // each direction.
     int16_t adjustment = (int16_t)(drift * 10.0 + (drift < 0 ? -1.0 : 1.0));
 
     int16_t aging = old + adjustment;

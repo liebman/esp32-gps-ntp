@@ -114,9 +114,8 @@ void SyncManager::resetOffset()
     //_rtcpps.resetOffset();
 }
 
-void SyncManager::manageDrift()
+void SyncManager::manageDrift(int32_t offset)
 {
-    int32_t offset = getOffset();
     time_t  now = time(nullptr); // we only need simple incrementing seconds
 
     //
@@ -152,6 +151,7 @@ void SyncManager::manageDrift()
 void SyncManager::process()
 {
     recordOffset();
+    int32_t offset = _rtcpps.getOffset();
     struct timeval gps_tv;
     struct timeval rtc_tv;
     _gpspps.getTime(&gps_tv);
@@ -161,31 +161,29 @@ void SyncManager::process()
         && _gps.getValid()
         && (gps_tv.tv_sec - _last_time) > 10)
     {
-        int32_t delta = _rtcpps.getOffset();
-        ESP_LOGD(TAG, "pps delta %d", delta);
+        ESP_LOGD(TAG, "pps offset %d", offset);
         _last_time = gps_tv.tv_sec;
 
         _gpspps.getTime(&gps_tv);
         _rtcpps.getTime(&rtc_tv);
 
-        if (abs(delta) > RTC_DRIFT_MAX /*|| gps_tv.tv_sec != rtc_tv.tv_sec*/)
+        if (abs(offset) > RTC_DRIFT_MAX /*|| gps_tv.tv_sec != rtc_tv.tv_sec*/)
         {
-            setTime(delta);
-            ESP_LOGI(TAG, "time correction happened!  PPS delta=%dus gps_time=%ld rtc_time%ld", delta, gps_tv.tv_sec, rtc_tv.tv_sec);
+            setTime(offset);
+            ESP_LOGI(TAG, "time correction happened!  PPS offset=%dus gps_time=%ld rtc_time%ld", offset, gps_tv.tv_sec, rtc_tv.tv_sec);
             struct timeval tv;
             _rtcpps.getTime(&tv);
             settimeofday(&tv, nullptr);
             _drift_start_time = 0; // reset any in-progress drift sample as its invalid when we set the time
             resetOffset();
         }
+        return;
     }
-    else
-    {
-        manageDrift();
-        struct tm tm;
-        _rtc.getTime(&tm);
-        _rtc_time = mktime(&tm);
-    }
+
+    manageDrift(offset);
+    struct tm tm;
+    _rtc.getTime(&tm);
+    _rtc_time = mktime(&tm);
 }
 
 void SyncManager::task(void* data)

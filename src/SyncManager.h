@@ -38,7 +38,7 @@ private:
 
     void recordOffset();
     void resetOffset();
-    void manageDrift();
+    void manageDrift(int32_t offset);
     void process();
     void setTime(int32_t delta);
     static void task(void* data);
