@@ -15,6 +15,7 @@
 
 #include "PageAbout.h"
 #include "PagePPS.h"
+#include "PageDelta.h"
 #include "PageSync.h"
 #include "PageGPS.h"
 #include "PageSats.h"
@@ -164,6 +165,7 @@ static void init(void* data)
     syncman.begin();
 
     new PageSync(syncman);
+    new PageDelta(syncman);
     new PagePPS(gps_pps, rtc_pps);
     new PageGPS(gps);
     new PageSats(gps);

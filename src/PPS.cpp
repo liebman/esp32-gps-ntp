@@ -4,7 +4,6 @@
 #include "esp_log.h"
 #include <sys/time.h>
 #include <soc/soc.h>
-#include "ulp_main.h"
 
 static const char* TAG = "PPS";
 
@@ -54,7 +53,10 @@ bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
         }
         ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pin);
         gpio_set_direction(_pin, GPIO_MODE_INPUT);
-        gpio_set_pull_mode(_pin, GPIO_PULLUP_ONLY);
+        if (_pin == 27)
+        {
+            gpio_set_pull_mode(_pin, GPIO_PULLUP_ONLY);
+        }
         //hook isr handler for specific gpio pin
         gpio_isr_handler_add(_pin, pps, this);
         ESP_LOGI(TAG, "::begin setup ppsISR");
@@ -74,12 +76,9 @@ static gpio_int_type_t next_level[2] {GPIO_INTR_HIGH_LEVEL,GPIO_INTR_LOW_LEVEL};
 
 void IRAM_ATTR PPS::pps(void* data)
 {
-    ulp_latency_flag = 1;
     PPS* pps = (PPS*)data;
     uint64_t current = esp_timer_get_time();
-#ifdef PPS_LATENCY_OUTPUT
-    gpio_set_level(LATENCY_PIN, 1);
-#endif
+
 #if 0
     // print warning if level is not what we expect!
     int level = gpio_get_level(pps->_pin);
@@ -95,36 +94,32 @@ void IRAM_ATTR PPS::pps(void* data)
     if (pps->_expect == pps->_expect_skip)
     {
         pps->_expect ^= 1;
-        ulp_latency_flag = 0;
-#ifdef PPS_LATENCY_OUTPUT
-        gpio_set_level(LATENCY_PIN, 0);
-#endif
         return;
     }
     pps->_expect ^= 1;
 
+    uint64_t last = pps->_last_timer;
     pps->_last_timer = current;
     if (pps->_disabled)
     {
-        ulp_latency_flag = 0;
         return;
     }
 
-    // could be the first time, lets skip the statistics and time keeping in that case
-    if (pps->_last_timer == 0)
+    // it's the first time, lets skip the statistics and time keeping in that case
+    if (last == 0)
     {
-        ulp_latency_flag = 0;
-#ifdef PPS_LATENCY_OUTPUT
-        gpio_set_level(LATENCY_PIN, 0);
-#endif
         return;
     }
 
     // increment the time
     pps->_time += 1;
 
+    int32_t last_offset = 0;
+
     if (pps->_ref != nullptr)
     {
+        last_offset = pps->_offset;
+
         int32_t delta = pps->_last_timer - pps->_ref->_last_timer;
         // we only care about microseconds so we will keep the delta
         // between -500000 and 500000.  Yea, if the reference stops then this is invalid
@@ -142,17 +137,32 @@ void IRAM_ATTR PPS::pps(void* data)
     // no stats for the first few seconds
     if (pps->_time < 3)
     {
-        ulp_latency_flag = 0;
-#ifdef PPS_LATENCY_OUTPUT
-        gpio_set_level(LATENCY_PIN, 0);
-#endif
         return;
     }
 
-    // detect min/max statistics
+    if (interval < PPS_SHORT_VALUE)
+    {
+#if 1
+        ets_printf("ERROR: %d: short (%d) @%lu lo=%d\n", pps->_pin, interval, pps->_time, last_offset);
+#endif
+        pps->_timer_short += 1;
+        pps->_timer_min = 0;
+        return;
+    }
+
     if (pps->_timer_min == 0 || interval < pps->_timer_min)
     {
         pps->_timer_min = interval;
+    }
+
+    if (interval > PPS_MISS_VALUE)
+    {
+#if 1
+        ets_printf("ERROR: %d: long (%d) @%lu lo=%d\n", pps->_pin, interval, pps->_time, last_offset);
+#endif
+        pps->_timer_long += 1;
+        pps->_timer_max = 0;
+        return;
     }
 
     if (pps->_timer_max == 0 || interval > pps->_timer_max)
@@ -160,20 +170,6 @@ void IRAM_ATTR PPS::pps(void* data)
         pps->_timer_max = interval;
     }
 
-    if (interval < PPS_SHORT_VALUE)
-    {
-        pps->_timer_short += 1;
-        pps->_timer_min = 0;
-    }
-    else if (interval > PPS_MISS_VALUE)
-    {
-        pps->_timer_long += 1;
-        pps->_timer_max = 0;
-    }
-    ulp_latency_flag = 0;
-#ifdef PPS_LATENCY_OUTPUT
-    gpio_set_level(LATENCY_PIN, 0);
-#endif
 }
 
 /**
