@@ -15,8 +15,8 @@ enum Row
     RTC_PPS_TIME,
     GPS_PPS_TIME,
     OFFSET,
-    DRIFT,
-    DRIFT_ADJUST,
+    ERROR,
+    INTEGRAL,
     _NUM_ROWS
 };
 
@@ -51,22 +51,22 @@ PageSync::PageSync(SyncManager& syncman)
         _table->setCellAlign(Row::RTC_PPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
         _table->setCellAlign(Row::GPS_PPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
         _table->setCellAlign(Row::OFFSET, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::DRIFT, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::DRIFT_ADJUST, 0, LV_LABEL_ALIGN_RIGHT);
+        _table->setCellAlign(Row::ERROR, 0, LV_LABEL_ALIGN_RIGHT);
+        _table->setCellAlign(Row::INTEGRAL, 0, LV_LABEL_ALIGN_RIGHT);
 
         _table->setCellValue(Row::RTC_TIME, 0, "RTC:");
         _table->setCellValue(Row::RTC_PPS_TIME, 0, "RTC PPS:");
         _table->setCellValue(Row::GPS_PPS_TIME, 0, "GPS PPS:");
         _table->setCellValue(Row::OFFSET, 0, "Offset:");
-        _table->setCellValue(Row::DRIFT, 0, "Drift:");
-        _table->setCellValue(Row::DRIFT_ADJUST, 0, "Drift Adj:");
+        _table->setCellValue(Row::ERROR, 0, "Error:");
+        _table->setCellValue(Row::INTEGRAL, 0, "Integral:");
 
         _table->setCellAlign(Row::RTC_TIME, 1, LV_LABEL_ALIGN_LEFT);
         _table->setCellAlign(Row::RTC_PPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
         _table->setCellAlign(Row::GPS_PPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
         _table->setCellAlign(Row::OFFSET, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::DRIFT, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::DRIFT_ADJUST, 1, LV_LABEL_ALIGN_LEFT);
+        _table->setCellAlign(Row::ERROR, 1, LV_LABEL_ALIGN_LEFT);
+        _table->setCellAlign(Row::INTEGRAL, 1, LV_LABEL_ALIGN_LEFT);
 
         ESP_LOGI(TAG, "creating task");
         lv_task_create(task, 100, LV_TASK_PRIO_LOW, this);
@@ -118,9 +118,9 @@ void PageSync::update()
     snprintf(buf, sizeof(buf)-1, "%d", _syncman.getOffset());
     _table->setCellValue(Row::OFFSET, 1, buf);
 
-    snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getDrift());
-    _table->setCellValue(Row::DRIFT, 1, buf);
+    snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getError());
+    _table->setCellValue(Row::ERROR, 1, buf);
 
-    snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getDriftAdjust());
-    _table->setCellValue(Row::DRIFT_ADJUST, 1, buf);
+    snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getIntegral());
+    _table->setCellValue(Row::INTEGRAL, 1, buf);
 }

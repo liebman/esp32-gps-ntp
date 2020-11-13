@@ -37,19 +37,19 @@ PageDelta::PageDelta(SyncManager& syncman) : _syncman(syncman)
         _chart->setSize(315, 200);
         _chart->setType(LV_CHART_TYPE_LINE);
         _chart->setDragParent(true);
-        _chart->setPointCount(60);
-        _chart->setDivLineCount(4, 0);
-        _chart->setYRange(LV_CHART_AXIS_PRIMARY_Y, -35, 35);
+        _chart->setPointCount(90);
+        _chart->setDivLineCount(7, 0);
+        _chart->setYRange(LV_CHART_AXIS_PRIMARY_Y, -10, 30);
         _chart->setYTickLength(10, 5);
-        _chart->setYTickTexts("-30-25\n-20\n-15\n-10\n-5\n0\n5\n10\n15\n20\n25\n30", 5, LV_CHART_AXIS_DRAW_LAST_TICK|LV_CHART_AXIS_INVERSE_LABELS_ORDER);
-        _chart->setStylePadLeft(LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, 30);
+        _chart->setYTickTexts("-10\n-5\n0\n5\n10\n15\n20\n25\n30", 5, LV_CHART_AXIS_DRAW_LAST_TICK|LV_CHART_AXIS_INVERSE_LABELS_ORDER);
+        _chart->setStylePadLeft(LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, 40);
         _chart->setStyleBorderWidth(LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, 0);
 
         _offset_series = _chart->addSeries(LV_COLOR_BLACK);
         update();
 
         ESP_LOGI(TAG, "creating task");
-        lv_task_create(task, 60000, LV_TASK_PRIO_LOW, this);
+        lv_task_create(task, 10000, LV_TASK_PRIO_LOW, this);
     });
 }
 

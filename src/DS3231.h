@@ -26,7 +26,6 @@ public:
 
     int8_t getAgeOffset();
     bool setAgeOffset(int8_t ageoff);
-    void adjustDrift(double drift); // in PPM
 
 protected:
     const uint8_t DS3231_ADDR       = 0x68;

@@ -45,14 +45,17 @@ bool DS3231::begin()
     ESP_LOGI(TAG, "aging:   %d",     (int8_t)data[AGEOFFSET]);
 
     _age_offset = (int8_t)data[AGEOFFSET];
-
+#if 0
     //
     // if the age offset is outside a normal range then zero it!
-    //  (30 is ~ 3ppm)
-    if (abs(_age_offset) >= 30)
+    //  (30 is ~ 2ppm)
+    if (abs(_age_offset) >= 20)
     {
         setAgeOffset(0);        
     }
+#else
+    setAgeOffset(0);        
+#endif
 
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
     updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
@@ -145,35 +148,6 @@ bool DS3231::setAgeOffset(int8_t ageoff)
     }
 
     return true;
-}
-
-void DS3231::adjustDrift(double drift)
-{
-
-    // rule of thumb is ~ 0.1ppm per increment, we push a little extra so its mostly balamced
-    // +/- 0.5 would be rounding so we use +/- 1.0 so we will over correct slightly in
-    // each direction.
-    int16_t adjustment = (int16_t)(drift * 10.0 + (drift < 0 ? -0.5 : 0.5));
-
-    if (adjustment == 0)
-    {
-        return;
-    }
-
-    int16_t aging = _age_offset + adjustment;
-
-    if (aging > 127)
-    {
-        aging = 127;
-    }
-    else if (aging < -127)
-    {
-        aging = -127;
-    }
-
-    ESP_LOGI(TAG, "::adjustDrift: drift=%0.3f old=%d adjustment=%d new=%d", drift, _age_offset, adjustment, aging);
-
-    setAgeOffset(aging);
 }
 
 bool DS3231::updateReg(Register reg, uint8_t value, uint8_t mask)
