@@ -37,19 +37,21 @@ PageDelta::PageDelta(SyncManager& syncman) : _syncman(syncman)
         _chart->setSize(315, 200);
         _chart->setType(LV_CHART_TYPE_LINE);
         _chart->setDragParent(true);
-        _chart->setPointCount(90);
-        _chart->setDivLineCount(7, 0);
-        _chart->setYRange(LV_CHART_AXIS_PRIMARY_Y, -10, 30);
+        _chart->setPointCount(60);
+        _chart->setDivLineCount(3, 0);
+        _chart->setYRange(LV_CHART_AXIS_PRIMARY_Y, -10, 10);
         _chart->setYTickLength(10, 5);
-        _chart->setYTickTexts("-10\n-5\n0\n5\n10\n15\n20\n25\n30", 5, LV_CHART_AXIS_DRAW_LAST_TICK|LV_CHART_AXIS_INVERSE_LABELS_ORDER);
+        _chart->setYTickTexts("-10\n-5\n0\n5\n10", 5, LV_CHART_AXIS_DRAW_LAST_TICK|LV_CHART_AXIS_INVERSE_LABELS_ORDER);
         _chart->setStylePadLeft(LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, 40);
         _chart->setStyleBorderWidth(LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, 0);
 
-        _offset_series = _chart->addSeries(LV_COLOR_BLACK);
-        update();
+
+        _min_error_series = _chart->addSeries(LV_COLOR_RED);
+        _max_error_series = _chart->addSeries(LV_COLOR_RED);
+        _avg_error_series = _chart->addSeries(LV_COLOR_GREEN);
 
         ESP_LOGI(TAG, "creating task");
-        lv_task_create(task, 10000, LV_TASK_PRIO_LOW, this);
+        lv_task_create(task, 1000, LV_TASK_PRIO_LOW, this);
     });
 }
 
@@ -63,69 +65,36 @@ void PageDelta::task(lv_task_t *task)
     p->update();
 }
 
-#if 0
-static int16_t roundUpTo5(int16_t numToRound)
-{
-    int remainder = abs(numToRound) % 5;
-
-    if (remainder == 0)
-        return numToRound;
-
-    if (numToRound < 0)
-    {
-        return numToRound + remainder;
-    }
-
-    return numToRound + (5 - remainder);
-}
-
-static int16_t roundDownTo5(int16_t numToRound)
-{
-    int remainder = abs(numToRound) % 5;
-
-    if (remainder == 0)
-        return numToRound;
-
-    if (numToRound < 0)
-    {
-        return numToRound - (5 - remainder);
-    }
-
-    return numToRound = remainder;
-}
-#endif
-
 void PageDelta::update()
 {
-    int32_t offset = _syncman.getOffset();
-    _chart->setNext(_offset_series, offset);
-#if 0
-    // find the series max and min.
-    int16_t max_offset = offset;
-    int16_t min_offset = offset;
-    for (uint16_t i = 0; i < _chart->getPointCount(); ++i)
+    time_t now = time(nullptr);
+    int32_t error = _syncman.getError();
+    if (error < _min_error || _total_count == 0)
     {
-        lv_coord_t val = _chart->getPointId(_offset_series, i);
-        if (val > max_offset)
-        {
-            max_offset = val;
-        }
-        if (val < min_offset)
-        {
-            min_offset = val;
-        }
+        _min_error = error;
+    }
+    if (error > _max_error || _total_count == 0)
+    {
+        _max_error = error;
     }
 
-    lv_coord_t max_scale = roundUpTo5(max_offset);
-    lv_coord_t min_scale = roundDownTo5(min_offset);
+    _total_error += error;
+    _total_count += 1;
 
-    if (max_scale == min_scale)
+    if ((now - _last_time) >= 60)
     {
-        max_scale = max_scale + 5;
-        min_scale = min_scale - 5;
+        _chart->setNext(_min_error_series, _min_error);
+        _chart->setNext(_max_error_series, _max_error);
+        int avg = 0;
+        if (_total_count > 0)
+        {
+            avg = _total_error / _total_count;
+        }
+        _chart->setNext(_avg_error_series, avg);
+        _min_error = 0;
+        _max_error = 0;
+        _total_count = 0;
+        _total_error = 0;
+        _last_time = now;
     }
-
-    ESP_LOGI(TAG, "::update range: %d -> %d rounded: %d -> %d", min_offset, max_offset, min_scale, max_scale);
-    _chart->setYRange(LV_CHART_AXIS_PRIMARY_Y, min_scale, max_scale);
-#endif
 }
