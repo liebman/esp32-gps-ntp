@@ -16,6 +16,7 @@ public:
     void     getGPSPPSTime(struct timeval* tv);
     int32_t  getOffset();
     float    getError();
+    float    getPreviousError();
     float    getIntegral();
     uint32_t getUptime();
 
@@ -27,6 +28,8 @@ private:
     PPS&               _gpspps;
     PPS&               _rtcpps;
     TaskHandle_t       _task;
+
+    float              _target             = 20.0;
 
     volatile time_t    _last_time          = 0;
     volatile time_t    _rtc_time           = 0;

@@ -126,7 +126,7 @@ void PageSync::update()
     snprintf(buf, sizeof(buf)-1, "%d", _syncman.getOffset());
     _table->setCellValue(Row::OFFSET, 1, buf);
 
-    snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getError());
+    snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getPreviousError());
     _table->setCellValue(Row::ERROR, 1, buf);
 
     snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getIntegral());

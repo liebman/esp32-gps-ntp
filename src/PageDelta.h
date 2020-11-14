@@ -15,10 +15,12 @@ private:
     static void task(lv_task_t* task);
     SyncManager&  _syncman;
     LVPage*  _page;
-    LVChart* _chart;
+    LVChart* _overview_chart;
     lv_chart_series_t* _min_error_series;
     lv_chart_series_t* _max_error_series;
     lv_chart_series_t* _avg_error_series;
+    LVChart* _detail_chart;
+    lv_chart_series_t* _error_series;
     LVStyle  _container_style;
     LVStyle  _chart_style;
 

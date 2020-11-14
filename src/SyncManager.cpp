@@ -55,6 +55,11 @@ void SyncManager::getGPSPPSTime(struct timeval* tv)
 
 float SyncManager::getError()
 {
+    return _target - (float)getOffset();
+}
+
+float SyncManager::getPreviousError()
+{
     return _previous_error;
 }
 
@@ -152,7 +157,7 @@ void SyncManager::manageDrift(int32_t offset)
     uint32_t interval = now - _drift_start_time;
     if (interval >= 10)
     {
-        float error = 20.0 - (float)offset;
+        float error = _target - (float)offset;
         _integral += error;
         if (abs(error) > 50)
         {
