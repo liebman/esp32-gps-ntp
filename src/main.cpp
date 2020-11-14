@@ -146,7 +146,7 @@ static void init(void* data)
     }
 
     // wait for the RTC PPS signal to be low, the first half of a secondm, so we
-    // don't do this on a second boundry as the PPS could get or miss an increment.
+    // don't do this on a second boundry as the RTC PPS could get or miss an increment.
     ESP_LOGI(TAG, " waiting a change in seconds");
     time_t now = rtc_pps.getTime(nullptr);
     while(rtc_pps.getTime(nullptr) == now)
