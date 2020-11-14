@@ -48,13 +48,11 @@ bool DS3231::begin()
 #if 0
     //
     // if the age offset is outside a normal range then zero it!
-    //  (30 is ~ 2ppm)
-    if (abs(_age_offset) >= 20)
+    //  (30 is > 2ppm)
+    if (abs(_age_offset) >= 30)
     {
-        setAgeOffset(0);        
+        setAgeOffset(0);
     }
-#else
-    setAgeOffset(0);        
 #endif
 
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
