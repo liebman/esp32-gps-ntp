@@ -12,6 +12,7 @@ static const char* TAG = "PageSync";
 enum Row
 {
     RTC_TIME = 0,
+    GPS_TIME,
     RTC_PPS_TIME,
     GPS_PPS_TIME,
     OFFSET,
@@ -48,6 +49,7 @@ PageSync::PageSync(SyncManager& syncman)
         _table->setColumnWidth(1, 160);
         _table->setRowCount(Row::_NUM_ROWS);
         _table->setCellAlign(Row::RTC_TIME, 0, LV_LABEL_ALIGN_RIGHT);
+        _table->setCellAlign(Row::GPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
         _table->setCellAlign(Row::RTC_PPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
         _table->setCellAlign(Row::GPS_PPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
         _table->setCellAlign(Row::OFFSET, 0, LV_LABEL_ALIGN_RIGHT);
@@ -55,6 +57,7 @@ PageSync::PageSync(SyncManager& syncman)
         _table->setCellAlign(Row::INTEGRAL, 0, LV_LABEL_ALIGN_RIGHT);
 
         _table->setCellValue(Row::RTC_TIME, 0, "RTC:");
+        _table->setCellValue(Row::GPS_TIME, 0, "GPS:");
         _table->setCellValue(Row::RTC_PPS_TIME, 0, "RTC PPS:");
         _table->setCellValue(Row::GPS_PPS_TIME, 0, "GPS PPS:");
         _table->setCellValue(Row::OFFSET, 0, "Offset:");
@@ -62,6 +65,7 @@ PageSync::PageSync(SyncManager& syncman)
         _table->setCellValue(Row::INTEGRAL, 0, "Integral:");
 
         _table->setCellAlign(Row::RTC_TIME, 1, LV_LABEL_ALIGN_LEFT);
+        _table->setCellAlign(Row::GPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
         _table->setCellAlign(Row::RTC_PPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
         _table->setCellAlign(Row::GPS_PPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
         _table->setCellAlign(Row::OFFSET, 1, LV_LABEL_ALIGN_LEFT);
@@ -106,6 +110,10 @@ void PageSync::update()
     time_t now = _syncman.getRTCTime();
     fmtTime("", buf, sizeof(buf)-1, now, 0xffffffff);
     _table->setCellValue(Row::RTC_TIME, 1, buf);
+
+    now = _syncman.getGPSTime();
+    fmtTime("", buf, sizeof(buf)-1, now, 0xffffffff);
+    _table->setCellValue(Row::GPS_TIME, 1, buf);
 
     _syncman.getRTCPPSTime(&tv);
     fmtTime("", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);

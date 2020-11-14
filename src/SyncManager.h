@@ -10,6 +10,7 @@ class SyncManager {
 public:
     SyncManager(GPS& gps, DS3231& rtc, PPS& gpspps, PPS& rtcpps);
     bool     begin();
+    time_t   getGPSTime();
     time_t   getRTCTime();
     void     getRTCPPSTime(struct timeval* tv);
     void     getGPSPPSTime(struct timeval* tv);

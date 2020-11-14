@@ -33,6 +33,11 @@ bool SyncManager::begin()
     return true;
 }
 
+time_t SyncManager::getGPSTime()
+{
+    return _gps.getRMCTime();
+}
+
 time_t SyncManager::getRTCTime()
 {
     return _rtc_time;
@@ -176,8 +181,7 @@ void SyncManager::manageDrift(int32_t offset)
 
 void SyncManager::process()
 {
-    // update value of RTC for display
-
+    // update value of RTC display (we are the only thread allowed to talk in i2c)
     struct tm tm;
     _rtc.getTime(&tm);
     _rtc_time = mktime(&tm);
