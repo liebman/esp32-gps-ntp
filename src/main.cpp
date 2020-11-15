@@ -22,11 +22,6 @@
 #include "PageGPS.h"
 #include "PageSats.h"
 
-#include "esp32/ulp.h"
-#include "ulp_main.h"
-extern const uint8_t bin_start[] asm("_binary_ulp_main_bin_start");
-extern const uint8_t bin_end[]   asm("_binary_ulp_main_bin_end");
-
 #ifdef __cplusplus
 //
 // app_main() is called from C
@@ -201,20 +196,6 @@ void app_main()
     Network::getNetwork().begin(config.getWiFiSSID(), config.getWiFiPassword());
 
     esp_err_t err;
-
-    ESP_LOGI(TAG, "loading ULP");
-    err = ulp_load_binary(0, bin_start, (bin_end - bin_start) / sizeof(uint32_t));
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "::begin: failed to load ULP: %d (%s)", err, esp_err_to_name(err));
-    }
-
-    ESP_LOGI(TAG, "::begin: starting ULP");
-    err = ulp_run(&ulp_entry - RTC_SLOW_MEM);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "::begin: failed to start ULP: %d (%s)", err, esp_err_to_name(err));
-    }
 
     // lets monitor the touch input.
     gpio_config_t io_conf;

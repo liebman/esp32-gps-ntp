@@ -8,6 +8,7 @@
 		"C_Cpp.default.intelliSenseMode": "gcc-x64",
 		"files.associations": {
 			"*.ipp": "cpp"
-		}
+		},
+		"C_Cpp.default.cppStandard": "c++17"
 	}
 }
