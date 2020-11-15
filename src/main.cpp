@@ -4,6 +4,7 @@
 #include "nvs_flash.h"
 #include "esp_log.h"
 
+#include "Config.h"
 #include "Display.h"
 #include "LatencyPin.h"
 #include "Network.h"
@@ -14,6 +15,7 @@
 #include "SyncManager.h"
 
 #include "PageAbout.h"
+#include "PageConfig.h"
 #include "PagePPS.h"
 #include "PageDelta.h"
 #include "PageSync.h"
@@ -52,6 +54,7 @@ extern "C" {
 #define TFT_LED_SEL (GPIO_SEL_4)
 
 static const char* TAG = "main";
+static Config config;
 static PPS gps_pps;
 static PPS rtc_pps(&gps_pps); // use gps_pps as ref.
 static GPS gps;
@@ -162,6 +165,7 @@ static void init(void* data)
     ntp.begin();
 
     // start the sync manager
+    syncman.setBias(config.getBias());
     syncman.begin();
 
     new PageSync(syncman);
@@ -169,6 +173,7 @@ static void init(void* data)
     new PagePPS(gps_pps, rtc_pps);
     new PageGPS(gps);
     new PageSats(gps);
+    new PageConfig(config);
     new PageAbout();
 
     vTaskDelete(NULL);
@@ -187,10 +192,13 @@ void app_main()
     }
     ESP_ERROR_CHECK(ret);
 
+    config.begin();
+    config.load();
+
     xTaskCreatePinnedToCore(&init, "init", 4096, nullptr, 1, nullptr, 1);
 
     ESP_LOGI(TAG, "initializing Network");
-    Network::getNetwork().begin();
+    Network::getNetwork().begin(config.getWiFiSSID(), config.getWiFiPassword());
 
     esp_err_t err;
 

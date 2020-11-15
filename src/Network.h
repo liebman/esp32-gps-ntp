@@ -11,7 +11,7 @@ public:
 
     static Network& getNetwork();
     ~Network();
-    bool begin();
+    bool begin(const char* ssid, const char* password);
     bool hasIP();
     esp_ip4_addr_t getIPAddress(char* buf = nullptr, size_t size = 0);
     uint32_t waitFor(Status status, TickType_t wait = portMAX_DELAY);

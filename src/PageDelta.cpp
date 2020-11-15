@@ -65,7 +65,7 @@ PageDelta::PageDelta(SyncManager& syncman) : _syncman(syncman)
         _error_series = _detail_chart->addSeries(LV_COLOR_BLACK);
 
         ESP_LOGI(TAG, "creating task");
-        lv_task_create(task, 1000, LV_TASK_PRIO_LOW, this);
+        lv_task_create(task, SyncManager::PID_INTERVAL*1000, LV_TASK_PRIO_LOW, this);
     });
 }
 
@@ -81,6 +81,11 @@ void PageDelta::task(lv_task_t *task)
 
 void PageDelta::update()
 {
+    if (!_syncman.isOffsetValid())
+    {
+        return;
+    }
+
     time_t now = time(nullptr);
     int32_t error = _syncman.getError();
 

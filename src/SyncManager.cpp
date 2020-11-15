@@ -102,6 +102,22 @@ void SyncManager::recordOffset()
     }
 }
 
+bool SyncManager::isOffsetValid()
+{
+    return _offset_count == OFFSET_DATA_SIZE;
+}
+
+float SyncManager::getBias()
+{
+    return _bias;
+}
+
+void SyncManager::setBias(float bias)
+{
+    ESP_LOGI(TAG, "setBias: %0f", bias);
+    _bias = bias;
+}
+
 /**
  * return the average offset.  0 is returnerd if the offset data is not full.
 */
@@ -150,22 +166,30 @@ void SyncManager::manageDrift(int32_t offset)
         return;
     }
 
-    static const float Kp = 0.60;
-    static const float Ki = 0.1;
-    static const float Kd = 0.5;
+    static const float Kp = 0.4;
+    static const float Ki = 0.2;
+    static const float Kd = 0.6;
 
     uint32_t interval = now - _drift_start_time;
-    if (interval >= 10)
+    if (interval >= PID_INTERVAL)
     {
         float error = _target - (float)offset;
         _integral += error;
-        if (abs(error) > 50)
+        // limit the integral to affecting the output by 64 max (thats about 6-7 PPM)
+        // Note that the integral is what builds up to compensate for any natural drift
+        // in the rtc, with a ds3231 (w/temperature controled oscillator) thats a max
+        // of 2ppm.  Also 64 is half the max we can adjust in either direction
+        if ((_integral*Ki) > 64.0)
         {
-            _integral = 0.0;
+            _integral = 64.0/Ki;
+        }
+        else if ((_integral*Ki) < -64.0)
+        {
+            _integral = -64.0/Ki;
         }
         float derivative = error - _previous_error;
         _previous_error = error;
-        float output = error*Kp + Ki*_integral + Kd*derivative;
+        float output = Kp*error + Ki*_integral + Kd*derivative + _bias;
         output = round(output);
         if (output > 127)
         {
@@ -179,7 +203,13 @@ void SyncManager::manageDrift(int32_t offset)
         {
             _rtc.setAgeOffset(output);
         }
-        ESP_LOGI(TAG, "::manageDrift: offset=%d error=%0.1f integral=%0.3f output=%0.3f", offset, error, _integral, output);
+
+        std::sort(_offset_data.begin(), _offset_data.end(), std::greater<int32_t>());
+        int32_t min_offset = _offset_data[OFFSET_DATA_SIZE-1];
+        int32_t max_offset = _offset_data[0];
+        int32_t med_offset = _offset_data[OFFSET_DATA_SIZE/2];
+        ESP_LOGI(TAG, "::manageDrift: interval:%u offset=%d/%d/%d/%d error=%0.1f integral=%0.1f derivative=%0.1f bias=%0.1f output=%0.1f",
+                 interval, offset, min_offset, max_offset, med_offset, error, _integral, derivative, _bias, output);
         _drift_start_time = now;
     }
 }

@@ -23,7 +23,7 @@ Network& Network::getNetwork()
     return *network;
 }
 
-bool Network::begin()
+bool Network::begin(const char* ssid, const char* password)
 {
     ESP_LOGI(TAG, "::begin starting");
     network_status = xEventGroupCreate();
@@ -41,13 +41,13 @@ bool Network::begin()
 
     wifi_config_t wifi_config;
     memset(&wifi_config, 0, sizeof(wifi_config));
-    for(uint8_t i = 0; WIFI_SSID[i] != 0; ++i)
+    for(uint8_t i = 0; ssid[i] != 0; ++i)
     {
-        wifi_config.sta.ssid[i] = WIFI_SSID[i];
+        wifi_config.sta.ssid[i] = ssid[i];
     }
-    for(uint8_t i = 0; WIFI_PASS[i] != 0; ++i)
+    for(uint8_t i = 0; password[i] != 0; ++i)
     {
-        wifi_config.sta.password[i] = WIFI_PASS[i];
+        wifi_config.sta.password[i] = password[i];
     }
     wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
     wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
