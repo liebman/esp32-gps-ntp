@@ -26,9 +26,9 @@ public:
 protected:
     PPS*        _ref;
     gpio_num_t  _pin                = GPIO_NUM_NC;
-    volatile uint64_t _last_timer   = 0;
-    int         _expect_skip        = 0;
-    int         _expect             = 0;
+    volatile uint32_t _last_timer   = 0;
+    int               _expect_skip  = 0;
+    int               _expect       = 0;
     volatile uint32_t _time         = 0;
     volatile uint32_t _timer_min    = 0;
     volatile uint32_t _timer_max    = 0;

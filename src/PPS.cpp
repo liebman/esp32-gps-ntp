@@ -3,7 +3,6 @@
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 #include <sys/time.h>
-#include <soc/soc.h>
 
 static const char* TAG = "PPS";
 
@@ -74,10 +73,20 @@ int PPS::getLevel()
 
 static gpio_int_type_t next_level[2] {GPIO_INTR_HIGH_LEVEL,GPIO_INTR_LOW_LEVEL};
 
+#ifdef LATENCY_OUTPUT
+#define LATENCY_START() GPIO.out_w1ts = 1 << LATENCY_PIN
+#define LATENCY_END()   GPIO.out_w1tc = 1 << LATENCY_PIN
+#else
+#define LATENCY_START()
+#define LATENCY_END()
+#endif
+
 void IRAM_ATTR PPS::pps(void* data)
 {
     PPS* pps = (PPS*)data;
-    uint64_t current = esp_timer_get_time();
+    LATENCY_START();
+
+    uint32_t current = esp_timer_get_time();
 
 #if 0
     // print warning if level is not what we expect!
@@ -87,13 +96,15 @@ void IRAM_ATTR PPS::pps(void* data)
         ets_printf("ERROR: %d expect (%d) != level (%d)\n", pps->_pin, pps->_expect, level);
     }
 #endif
-    gpio_set_intr_type(pps->_pin, next_level[pps->_expect]);
+
+    GPIO.pin[pps->_pin].int_type = next_level[pps->_expect];
 
     uint32_t interval = current - pps->_last_timer;
 
     if (pps->_expect == pps->_expect_skip)
     {
         pps->_expect ^= 1;
+        LATENCY_END();
         return;
     }
     pps->_expect ^= 1;
@@ -102,12 +113,14 @@ void IRAM_ATTR PPS::pps(void* data)
     pps->_last_timer = current;
     if (pps->_disabled)
     {
+        LATENCY_END();
         return;
     }
 
     // it's the first time, lets skip the statistics and time keeping in that case
     if (last == 0)
     {
+        LATENCY_END();
         return;
     }
 
@@ -137,6 +150,7 @@ void IRAM_ATTR PPS::pps(void* data)
     // no stats for the first few seconds
     if (pps->_time < 3)
     {
+        LATENCY_END();
         return;
     }
 
@@ -147,6 +161,7 @@ void IRAM_ATTR PPS::pps(void* data)
 #endif
         pps->_timer_short += 1;
         pps->_timer_min = 0;
+        LATENCY_END();
         return;
     }
 
@@ -162,6 +177,7 @@ void IRAM_ATTR PPS::pps(void* data)
 #endif
         pps->_timer_long += 1;
         pps->_timer_max = 0;
+        LATENCY_END();
         return;
     }
 
@@ -169,7 +185,7 @@ void IRAM_ATTR PPS::pps(void* data)
     {
         pps->_timer_max = interval;
     }
-
+    LATENCY_END();
 }
 
 /**
