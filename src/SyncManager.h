@@ -41,7 +41,7 @@ private:
     // If they triggered exactly in sync one would still be processed after the other with
     // a delta of less than 10us usually. This would cause a lot of jitter.
     //
-    float              _target             = 20.0;
+    float              _target             = 10.0;
     //
     // We can optionbally bias the output to compensate for natural drift from the RTC. This
     // makes initial syncing faster as the integral does not need to build up to compensate.
