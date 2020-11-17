@@ -21,6 +21,7 @@
 #include "PageSync.h"
 #include "PageGPS.h"
 #include "PageSats.h"
+#include "PageTask.h"
 
 #ifdef __cplusplus
 //
@@ -168,6 +169,7 @@ static void init(void* data)
     new PagePPS(gps_pps, rtc_pps);
     new PageGPS(gps);
     new PageSats(gps);
+    new PageTask();
     new PageConfig(config);
     new PageAbout();
 

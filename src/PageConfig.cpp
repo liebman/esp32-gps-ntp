@@ -18,7 +18,7 @@ PageConfig::PageConfig(Config& config)
 {
     WithDisplayLock lock; // this creates a lock that unlocks when destroyed
 
-    _page = Display::getDisplay().newPage("Config");
+    _page = Display::getDisplay().newPage("Cfg");
     _contrainer_style.setPadInner(LV_STATE_DEFAULT, LV_DPX(2));
     _contrainer_style.setPad(LV_STATE_DEFAULT, LV_DPX(1), LV_DPX(1), LV_DPX(1), LV_DPX(1));
     _contrainer_style.setMargin(LV_STATE_DEFAULT, 0, 0, 0, 0);
