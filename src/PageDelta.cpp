@@ -103,7 +103,7 @@ void PageDelta::update()
     _total_error += error;
     _total_count += 1;
 
-    if ((now - _last_time) >= 60)
+    if ((now - _last_time) >= (60*30)) // every 30 minutes giving 30 hours on the graph
     {
         _overview_chart->setNext(_min_error_series, _min_error);
         _overview_chart->setNext(_max_error_series, _max_error);
