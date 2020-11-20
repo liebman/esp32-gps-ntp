@@ -123,7 +123,7 @@ void PageSync::update()
     fmtTime("", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
     _table->setCellValue(Row::GPS_PPS_TIME, 1, buf);
 
-    snprintf(buf, sizeof(buf)-1, "%d", _syncman.getOffset());
+    snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getOffset());
     _table->setCellValue(Row::OFFSET, 1, buf);
 
     snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getPreviousError());

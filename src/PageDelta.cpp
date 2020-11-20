@@ -87,7 +87,7 @@ void PageDelta::update()
     }
 
     time_t now = time(nullptr);
-    int32_t error = _syncman.getError();
+    int32_t error = round(_syncman.getError());
 
     _detail_chart->setNext(_error_series, error);
 

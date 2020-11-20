@@ -15,7 +15,7 @@ public:
     void     getRTCPPSTime(struct timeval* tv);
     void     getGPSPPSTime(struct timeval* tv);
     bool     isOffsetValid();
-    int32_t  getOffset();
+    float    getOffset();
     float    getError();
     float    getPreviousError();
     float    getIntegral();
@@ -58,7 +58,7 @@ private:
 
     void recordOffset();
     void resetOffset();
-    void manageDrift(int32_t offset);
+    void manageDrift(float offset);
     void process();
     void setTime(int32_t delta);
     static void task(void* data);

@@ -121,20 +121,32 @@ void SyncManager::setBias(float bias)
 /**
  * return the average offset.  0 is returnerd if the offset data is not full.
 */
-int32_t SyncManager::getOffset()
+float SyncManager::getOffset()
 {
     if (_offset_count < OFFSET_DATA_SIZE)
     {
         return 0;
     }
 
-    int32_t total = 0;
+    float total = 0;
+    int32_t min_offset = _offset_data[0];
+    int32_t max_offset = _offset_data[0];
     for(uint32_t i = 0; i < _offset_count; ++i)
     {
         total += _offset_data[i];
+        if (_offset_data[i] < min_offset)
+        {
+            min_offset = _offset_data[i];
+        }
+        if (_offset_data[i] > max_offset)
+        {
+            max_offset = _offset_data[i];
+        }
     }
-
-    int32_t offset = total / (int32_t)OFFSET_DATA_SIZE;
+    // throw out the min and max values
+    total -= min_offset;
+    total -= max_offset;
+    float offset = total / ((float)OFFSET_DATA_SIZE-2);
     return offset;
 }
 
@@ -148,7 +160,7 @@ void SyncManager::resetOffset()
     _previous_error = 0;
 }
 
-void SyncManager::manageDrift(int32_t offset)
+void SyncManager::manageDrift(float offset)
 {
     time_t  now = time(nullptr); // we only need simple incrementing seconds
 
@@ -160,7 +172,7 @@ void SyncManager::manageDrift(int32_t offset)
         // only initialize on a non-zero offset
         if (offset != 0)
         {
-            ESP_LOGI(TAG, "::manageDrift: reset calculation base with start offset=%d", offset);
+            ESP_LOGI(TAG, "::manageDrift: reset calculation base with start offset=%0.3f", offset);
             _drift_start_time = now;
         }
         return;
@@ -208,7 +220,7 @@ void SyncManager::manageDrift(int32_t offset)
         int32_t min_offset = _offset_data[OFFSET_DATA_SIZE-1];
         int32_t max_offset = _offset_data[0];
         int32_t med_offset = _offset_data[OFFSET_DATA_SIZE/2];
-        ESP_LOGI(TAG, "::manageDrift: interval:%u offset=%d/%d/%d/%d error=%0.1f integral=%0.1f derivative=%0.1f bias=%0.1f output=%0.1f",
+        ESP_LOGI(TAG, "::manageDrift: interval:%u offset=%0.1f/%d/%d/%d error=%0.1f integral=%0.1f derivative=%0.1f bias=%0.1f output=%0.1f",
                  interval, offset, min_offset, max_offset, med_offset, error, _integral, derivative, _bias, output);
         _drift_start_time = now;
     }
@@ -222,7 +234,7 @@ void SyncManager::process()
     _rtc_time = mktime(&tm);
 
     recordOffset();
-    int32_t offset = getOffset();
+    float offset = getOffset();
 
     struct timeval gps_tv;
     struct timeval rtc_tv;
@@ -237,13 +249,13 @@ void SyncManager::process()
         && _gps.getValid()
         && interval > 10)
     {
-        ESP_LOGD(TAG, "pps offset %d", offset);
+        ESP_LOGD(TAG, "pps offset %0.3f", offset);
         _last_time = gps_tv.tv_sec;
 
         if (abs(offset) > RTC_DRIFT_MAX || gps_tv.tv_sec != rtc_tv.tv_sec)
         {
             setTime(offset);
-            ESP_LOGI(TAG, "time correction happened!  PPS offset=%dus gps_time=%ld rtc_time%ld", offset, gps_tv.tv_sec, rtc_tv.tv_sec);
+            ESP_LOGI(TAG, "time correction happened!  PPS offset=%0.3fus gps_time=%ld rtc_time%ld", offset, gps_tv.tv_sec, rtc_tv.tv_sec);
             struct timeval tv;
             _rtcpps.getTime(&tv);
             settimeofday(&tv, nullptr);
