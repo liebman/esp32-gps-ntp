@@ -29,6 +29,7 @@ public:
     int   getFixType();
     // from RMC
     bool  getValid();
+    uint64_t getValidSince();
     float getLatitude();
     float getLongitude();
     char* getPSTI();
@@ -55,7 +56,8 @@ protected:
     float       _longitude;
     char        _psti[81];
     struct timespec _rmc_time;
-    uint32_t        _last_rmc;
+    uint64_t        _last_rmc;
+    uint64_t        _valid_since;
 
     // from ZDA if present
     struct timespec _zda_time;

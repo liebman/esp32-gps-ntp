@@ -55,7 +55,7 @@ static PPS gps_pps;
 static PPS rtc_pps(&gps_pps); // use gps_pps as ref.
 static GPS gps;
 static DS3231 rtc;
-static NTP ntp(gps_pps);
+static NTP ntp(rtc_pps);
 static SyncManager syncman(gps, rtc, gps_pps, rtc_pps);
 
 static void init(void* data)

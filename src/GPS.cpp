@@ -163,14 +163,26 @@ int GPS::getFixType()
 // from RMC
 bool GPS::getValid()
 {
-    uint32_t now = esp_timer_get_time();
-    uint32_t age = now - _last_rmc;
+    uint64_t now = esp_timer_get_time();
+    uint64_t age = now - _last_rmc;
     if (_valid && age > 1500000) // its bad if older than 1.5 seconds
     {
-        ESP_LOGE(TAG, "::getValid returning false record too old %uus", age);
+        ESP_LOGE(TAG, "::getValid returning false record too old %lluus", age);
+        _valid = false;
+        return false;
+    }
+    // return false for the first minute after its valid
+    age = now - _valid_since;
+    if (_valid && age < 60000000)
+    {
         return false;
     }
     return _valid;
+}
+
+uint64_t GPS::getValidSince()
+{
+    return _valid_since;
 }
 
 float GPS::getLatitude()
@@ -206,12 +218,13 @@ void GPS::process(char* sentence)
     switch (minmea_sentence_id(sentence, false))
     {
         case MINMEA_SENTENCE_RMC:
+        {
             if (!minmea_parse_rmc(&data.rmc, sentence))
             {
                 ESP_LOGE(TAG, "$xxRMC sentence is not parsed");
                 break;
             }
-
+            bool was_valid = _valid;
             _valid     = data.rmc.valid;
             _latitude  = minmea_tocoord(&data.rmc.latitude);
             _longitude = minmea_tocoord(&data.rmc.longitude);
@@ -221,12 +234,17 @@ void GPS::process(char* sentence)
                 ESP_LOGE(TAG, "::process RMC failed to convert date/time!");
             }
             _last_rmc = esp_timer_get_time();
+            if (_valid && !was_valid)
+            {
+                _valid_since = _last_rmc;
+            }
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
                     minmea_tocoord(&data.rmc.latitude),
                     minmea_tocoord(&data.rmc.longitude),
                     minmea_tofloat(&data.rmc.speed));
             break;
+        }
 
         case MINMEA_SENTENCE_GGA:
             if (!minmea_parse_gga(&data.gga, sentence))
@@ -285,6 +303,11 @@ void GPS::process(char* sentence)
             break;
 
         case MINMEA_SENTENCE_VTG:
+            // ignore empty VTG as it failes parsing
+            if (strcmp(sentence, "$GPVTG,,,,,,,,,N*30") == 0)
+            {
+                break;
+            }
             if (!minmea_parse_vtg(&data.vtg, sentence)) 
             {
                 ESP_LOGE(TAG, "$xxVTG sentence is not parsed");

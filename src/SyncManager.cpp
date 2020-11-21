@@ -1,5 +1,6 @@
 #include "SyncManager.h"
 #include "LatencyPin.h"
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 
 #if defined(CONFIG_GPSNTP_RTC_DRIFT_MAX)
@@ -172,7 +173,7 @@ void SyncManager::manageDrift(float offset)
         // only initialize on a non-zero offset
         if (offset != 0)
         {
-            ESP_LOGI(TAG, "::manageDrift: reset calculation base with start offset=%0.3f", offset);
+            ESP_LOGD(TAG, "::manageDrift: reset calculation base with start offset=%0.3f", offset);
             _drift_start_time = now;
         }
         return;
@@ -219,9 +220,8 @@ void SyncManager::manageDrift(float offset)
         std::sort(_offset_data.begin(), _offset_data.end(), std::greater<int32_t>());
         int32_t min_offset = _offset_data[OFFSET_DATA_SIZE-1];
         int32_t max_offset = _offset_data[0];
-        int32_t med_offset = _offset_data[OFFSET_DATA_SIZE/2];
-        ESP_LOGI(TAG, "::manageDrift: interval:%u offset=%0.1f/%d/%d/%d error=%0.1f integral=%0.1f derivative=%0.1f bias=%0.1f output=%0.1f",
-                 interval, offset, min_offset, max_offset, med_offset, error, _integral, derivative, _bias, output);
+        ESP_LOGD(TAG, "::manageDrift: interval:%u offset=%0.1f/%d/%d error=%0.1f integral=%0.1f derivative=%0.1f bias=%0.1f output=%0.1f",
+                 interval, offset, min_offset, max_offset, error, _integral, derivative, _bias, output);
         _drift_start_time = now;
     }
 }
@@ -232,6 +232,13 @@ void SyncManager::process()
     struct tm tm;
     _rtc.getTime(&tm);
     _rtc_time = mktime(&tm);
+
+    // if the GPS is not valid then reset the offset and return
+    if (!_gps.getValid())
+    {
+        resetOffset();
+        return;
+    }
 
     recordOffset();
     float offset = getOffset();
@@ -246,10 +253,9 @@ void SyncManager::process()
     // ~10 sec but only if GPS is valid and not too close to the start or end of a second!
     if (gps_tv.tv_usec > 800000
         && gps_tv.tv_usec < 900000
-        && _gps.getValid()
         && interval > 10)
     {
-        ESP_LOGD(TAG, "pps offset %0.3f", offset);
+        ESP_LOGV(TAG, "pps offset %0.3f", offset);
         _last_time = gps_tv.tv_sec;
 
         if (abs(offset) > RTC_DRIFT_MAX || gps_tv.tv_sec != rtc_tv.tv_sec)
