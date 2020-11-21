@@ -217,11 +217,22 @@ void SyncManager::manageDrift(float offset)
             _rtc.setAgeOffset(output);
         }
 
-        std::sort(_offset_data.begin(), _offset_data.end(), std::greater<int32_t>());
-        int32_t min_offset = _offset_data[OFFSET_DATA_SIZE-1];
+        int32_t min_offset = _offset_data[0];
         int32_t max_offset = _offset_data[0];
-        ESP_LOGD(TAG, "::manageDrift: interval:%u offset=%0.1f/%d/%d error=%0.1f integral=%0.1f derivative=%0.1f bias=%0.1f output=%0.1f",
-                 interval, offset, min_offset, max_offset, error, _integral, derivative, _bias, output);
+        for (size_t i = 1; i < OFFSET_DATA_SIZE; ++i)
+        {
+            if (_offset_data[i] > max_offset)
+            {
+                max_offset = _offset_data[i];
+            }
+            if (_offset_data[i] < min_offset)
+            {
+                min_offset = _offset_data[i];
+            }
+
+        }
+        ESP_LOGD(TAG, "::manageDrift: offset=%0.1f/%d/%d error=%0.1f integral=%0.1f derivative=%0.1f bias=%0.1f output=%0.1f",
+                 offset, min_offset, max_offset, error, _integral, derivative, _bias, output);
         _drift_start_time = now;
     }
 }
