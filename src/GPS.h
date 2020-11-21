@@ -54,8 +54,10 @@ protected:
     float       _latitude;
     float       _longitude;
     char        _psti[81];
-
     struct timespec _rmc_time;
+    uint32_t        _last_rmc;
+
+    // from ZDA if present
     struct timespec _zda_time;
 
 private:

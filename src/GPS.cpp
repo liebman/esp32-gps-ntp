@@ -13,7 +13,7 @@ static const char* TAG = "GPS";
 #endif
 
 #ifndef GPS_TASK_CORE
-#define GPS_TASK_CORE 1
+#define GPS_TASK_CORE 0
 #endif
 
 typedef union {
@@ -163,6 +163,13 @@ int GPS::getFixType()
 // from RMC
 bool GPS::getValid()
 {
+    uint32_t now = esp_timer_get_time();
+    uint32_t age = now - _last_rmc;
+    if (_valid && age > 1500000) // its bad if older than 1.5 seconds
+    {
+        ESP_LOGE(TAG, "::getValid returning false record too old %uus", age);
+        return false;
+    }
     return _valid;
 }
 
@@ -213,6 +220,7 @@ void GPS::process(char* sentence)
                 _valid = false;
                 ESP_LOGE(TAG, "::process RMC failed to convert date/time!");
             }
+            _last_rmc = esp_timer_get_time();
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
                     minmea_tocoord(&data.rmc.latitude),
