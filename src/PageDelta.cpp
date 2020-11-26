@@ -65,7 +65,7 @@ PageDelta::PageDelta(SyncManager& syncman) : _syncman(syncman)
         _error_series = _detail_chart->addSeries(LV_COLOR_BLACK);
 
         ESP_LOGI(TAG, "creating task");
-        lv_task_create(task, SyncManager::PID_INTERVAL*1000, LV_TASK_PRIO_LOW, this);
+        lv_task_create(task, SyncManager::OFFSET_DATA_SIZE*1000, LV_TASK_PRIO_LOW, this);
     });
 }
 
