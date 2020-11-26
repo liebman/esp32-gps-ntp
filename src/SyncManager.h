@@ -31,7 +31,7 @@ public:
 private:
     float           _Kp = 3.2;
     float           _Ki = 0.1;
-    float           _Kd = 0.5;
+    float           _Kd = 0.8;
 
     int32_t         _offset_data[OFFSET_DATA_SIZE];
     GPS&            _gps;

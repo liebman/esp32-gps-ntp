@@ -22,7 +22,7 @@ PageDelta::PageDelta(SyncManager& syncman) : _syncman(syncman)
         _chart_style.setSize(LV_STATE_DEFAULT, 1);
         _chart_style.setLineWidth(LV_STATE_DEFAULT, 1);
 
-        _page = Display::getDisplay().newPage("Delta");
+        _page = Display::getDisplay().newPage("Dlt");
         _page->addStyle(LV_PAGE_PART_SCROLLABLE, &_container_style);
 
         LVContainer* cont = new LVContainer(_page);

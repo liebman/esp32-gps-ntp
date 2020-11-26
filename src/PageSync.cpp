@@ -31,7 +31,7 @@ PageSync::PageSync(SyncManager& syncman)
         _container_style.setBorderWidth(LV_STATE_DEFAULT, 0);
         _container_style.setShadowWidth(LV_STATE_DEFAULT, 0);
 
-        _page = Display::getDisplay().newPage("Sync");
+        _page = Display::getDisplay().newPage("Syn");
         _page->addStyle(LV_PAGE_PART_SCROLLABLE, &_container_style);
 
         LVContainer* cont = new LVContainer(_page);

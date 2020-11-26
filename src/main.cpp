@@ -22,6 +22,7 @@
 #include "PageGPS.h"
 #include "PageSats.h"
 #include "PageTask.h"
+#include "PageNTP.h"
 
 #ifdef __cplusplus
 //
@@ -169,6 +170,7 @@ static void init(void* data)
     // start the sync manager
     syncman.begin();
 
+    new PageNTP(ntp, syncman);
     new PageSync(syncman);
     new PageDelta(syncman);
     new PagePPS(gps_pps, rtc_pps);
