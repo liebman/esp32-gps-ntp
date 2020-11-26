@@ -2,10 +2,11 @@
 #include "esp_log.h"
 #include "string.h"
 
-static const char* TAG = "Config";
-static const char* KEY_WIFI_SSID  = "wifi_ssid";
-static const char* KEY_WIFI_PASS  = "wifi_pass";
-static const char* KEY_BIAS   = "bias";
+static const char* TAG           = "Config";
+static const char* KEY_WIFI_SSID = "wifi_ssid";
+static const char* KEY_WIFI_PASS = "wifi_pass";
+static const char* KEY_BIAS      = "bias";
+static const char* KEY_TARGET    = "target";
 
 Config::Config()
 {
@@ -129,7 +130,10 @@ bool Config::load()
     _wifi_pass = getString(KEY_WIFI_PASS);
 
     _bias = getFloat(KEY_BIAS);
-    ESP_LOGI(TAG, "::load: ssid=%s pass=%s bias=%0f", _wifi_ssid, _wifi_pass, _bias);
+
+    _target = getFloat(KEY_TARGET);
+
+    ESP_LOGI(TAG, "::load: ssid=%s pass=%s bias=%0f target=%0f", _wifi_ssid, _wifi_pass, _bias, _target);
     return true;
 }
 
@@ -153,6 +157,12 @@ bool Config::save()
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "::save failed to set '%s=%f': %d (%s)", KEY_BIAS, _bias, err, esp_err_to_name(err));
+        ret = false;
+    }
+    err = nvs_set_blob(_nvs, KEY_TARGET, &_target, sizeof(_target));
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "::save failed to set '%s=%f': %d (%s)", KEY_TARGET, _target, err, esp_err_to_name(err));
         ret = false;
     }
     return ret;
@@ -202,4 +212,14 @@ void Config::setBias(float bias)
 float Config::getBias()
 {
     return _bias;
+}
+
+void Config::setTarget(float target)
+{
+    _target = target;
+}
+
+float Config::getTarget()
+{
+    return _target;
 }

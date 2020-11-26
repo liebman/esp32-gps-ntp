@@ -58,6 +58,12 @@ static DS3231 rtc;
 static NTP ntp(rtc_pps);
 static SyncManager syncman(gps, rtc, gps_pps, rtc_pps);
 
+static void apply_config()
+{
+    syncman.setBias(config.getBias());
+    syncman.setTarget(config.getTarget());
+}
+
 static void init(void* data)
 {
     (void)data;
@@ -161,7 +167,6 @@ static void init(void* data)
     ntp.begin();
 
     // start the sync manager
-    syncman.setBias(config.getBias());
     syncman.begin();
 
     new PageSync(syncman);
@@ -170,7 +175,7 @@ static void init(void* data)
     new PageGPS(gps);
     new PageSats(gps);
     new PageTask();
-    new PageConfig(config);
+    new PageConfig(config, apply_config);
     new PageAbout();
 
     vTaskDelete(NULL);
@@ -191,6 +196,7 @@ void app_main()
 
     config.begin();
     config.load();
+    apply_config();
 
     xTaskCreatePinnedToCore(&init, "init", 4096, nullptr, 1, nullptr, 1);
 

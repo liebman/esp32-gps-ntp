@@ -13,22 +13,27 @@
 class PageConfig
 {
 public:
-    PageConfig(Config& config);
+    using ApplyCB = std::function<void()>;
+    PageConfig(Config& config, ApplyCB apply_cb = nullptr);
     ~PageConfig();
     void process();
 
 private:
-    Config&   _config;
-    LVStyle _contrainer_style;
-    LVStyle _textarea_style;
-    LVStyle _button_style;
+    Config&    _config;
+    ApplyCB    _apply_cb;
 
-    LVPage*     _page;
-    FieldText*  _ssid;
-    FieldText*  _password;
-    FieldText*  _bias;
-    LVButton*   _save;
-    LVButton*   _load;
+    LVStyle    _contrainer_style;
+    LVStyle    _textarea_style;
+    LVStyle    _button_style;
+
+    LVPage*    _page;
+    FieldText* _ssid;
+    FieldText* _password;
+    FieldText* _bias;
+    FieldText* _target;
+    LVButton*  _apply;
+    LVButton*  _save;
+    LVButton*  _load;
 
     LVButton*   makeButton(LVBase* parent, const char* label, LVBase::LVEventCB cb);
     LVSpinBox*  makeSpinBoxField(LVBase* parent, const char* label, int32_t initial_value, LVBase::LVEventCB cb);

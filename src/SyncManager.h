@@ -15,18 +15,23 @@ public:
     void     getRTCPPSTime(struct timeval* tv);
     void     getGPSPPSTime(struct timeval* tv);
     bool     isOffsetValid();
-    float    getOffset();
+    float    getOffset(int32_t* minp=nullptr, int32_t* maxp = nullptr);
     float    getError();
     float    getPreviousError();
     float    getIntegral();
     uint32_t getUptime();
     float    getBias();
     void     setBias(float bias);
+    float    getTarget();
+    void     setTarget(float target);
 
-    static const uint32_t PID_INTERVAL = 10;
+    static const uint32_t PID_INTERVAL = 1;
+    static const uint32_t OFFSET_DATA_SIZE = 10;
 
 private:
-    static const uint32_t OFFSET_DATA_SIZE = 10;
+    float           _Kp = 3.2;
+    float           _Ki = 0.1;
+    float           _Kd = 0.5;
 
     int32_t         _offset_data[OFFSET_DATA_SIZE];
     GPS&            _gps;

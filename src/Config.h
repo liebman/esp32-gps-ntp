@@ -19,11 +19,14 @@ public:
     const char* getWiFiPassword();
     void setBias(float bias);
     float getBias();
+    void setTarget(float target);
+    float getTarget();
 private:
     nvs_handle_t _nvs;
     char*        _wifi_ssid = nullptr;
     char*        _wifi_pass = nullptr;
     float        _bias = 0.0;
+    float        _target = 10.0;
     char* getString(const char* key, const char* def_value = "");
     void  getString(const char* key, const char** valuep, const char* def_value = "");
     float getFloat(const char* key, float def_value = 0.0);

@@ -13,8 +13,9 @@ static void configTask(lv_task_t* task)
     p->process();
 }
 
-PageConfig::PageConfig(Config& config)
-: _config(config)
+PageConfig::PageConfig(Config& config, ApplyCB apply_cb)
+: _config(config),
+  _apply_cb(apply_cb)
 {
     WithDisplayLock lock; // this creates a lock that unlocks when destroyed
 
@@ -82,6 +83,18 @@ PageConfig::PageConfig(Config& config)
     snprintf(buf, sizeof(buf)-1, "%0f", _config.getBias());
     _bias->setText(buf);
 
+    _target = new FieldText(fcont, "Target:", 32,
+            [this](){
+                _config.setTarget(atof(_target->getText()));
+            },
+            [this](){
+                char buf[32];
+                snprintf(buf, sizeof(buf)-1, "%0f", _config.getTarget());
+                _target->setText(buf);
+            });
+    snprintf(buf, sizeof(buf)-1, "%0f", _config.getTarget());
+    _target->setText(buf);
+
     LVContainer* ctrls = new LVContainer(cont);
     ctrls->setFit(LV_FIT_TIGHT);
     ctrls->setLayout(LV_LAYOUT_ROW_MID);
@@ -90,13 +103,6 @@ PageConfig::PageConfig(Config& config)
     ctrls->setStylePadInner(LV_CONT_PART_MAIN, LV_STATE_DEFAULT, 50);
     ctrls->setStyleMarginTop(LV_CONT_PART_MAIN, LV_STATE_DEFAULT, 10);
     ctrls->setDragParent(true);
-
-    _save = makeButton(ctrls, "SAVE", [this](lv_event_t event){
-        if(event == LV_EVENT_CLICKED) {
-            ESP_LOGI(TAG, "_save CB: saving!");
-            _config.save();
-        }
-    });
 
     _load = makeButton(ctrls, "LOAD", [this](lv_event_t event){
         if(event == LV_EVENT_CLICKED) {
@@ -110,6 +116,25 @@ PageConfig::PageConfig(Config& config)
             char buf[32];
             snprintf(buf, sizeof(buf)-1, "%0f", _config.getBias());
             _bias->setText(buf);
+            snprintf(buf, sizeof(buf)-1, "%0f", _config.getTarget());
+            _target->setText(buf);
+        }
+    });
+
+    _save = makeButton(ctrls, "SAVE", [this](lv_event_t event){
+        if(event == LV_EVENT_CLICKED) {
+            ESP_LOGI(TAG, "_save CB: saving!");
+            _config.save();
+        }
+    });
+
+    _apply = makeButton(ctrls, "APPLY", [this](lv_event_t event){
+        if(event == LV_EVENT_CLICKED) {
+            ESP_LOGI(TAG, "_apply CB: invoke callback!!");
+            if (_apply_cb)
+            {
+                _apply_cb();
+            }
         }
     });
 

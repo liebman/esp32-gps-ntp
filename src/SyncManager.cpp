@@ -1,6 +1,6 @@
 #include "SyncManager.h"
 #include "LatencyPin.h"
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 
 #if defined(CONFIG_GPSNTP_RTC_DRIFT_MAX)
@@ -117,22 +117,37 @@ void SyncManager::setBias(float bias)
 {
     ESP_LOGI(TAG, "setBias: %0f", bias);
     _bias = bias;
+    resetOffset();
 }
+
+float SyncManager::getTarget()
+{
+    return _target;
+}
+
+void SyncManager::setTarget(float target)
+{
+    ESP_LOGI(TAG, "setTarget: %0f", target);
+    _target = target;
+    resetOffset();
+}
+
 
 /**
  * return the average offset.  0 is returnerd if the offset data is not full.
 */
-float SyncManager::getOffset()
+float SyncManager::getOffset(int32_t* minp, int32_t* maxp)
 {
     if (_offset_count < OFFSET_DATA_SIZE)
     {
         return 0;
     }
 
-    float total = 0;
+    float total        = _offset_data[0];
     int32_t min_offset = _offset_data[0];
     int32_t max_offset = _offset_data[0];
-    for(uint32_t i = 0; i < _offset_count; ++i)
+
+    for(uint32_t i = 1; i < _offset_count; ++i)
     {
         total += _offset_data[i];
         if (_offset_data[i] < min_offset)
@@ -148,6 +163,14 @@ float SyncManager::getOffset()
     total -= min_offset;
     total -= max_offset;
     float offset = total / ((float)OFFSET_DATA_SIZE-2);
+    if (minp != nullptr)
+    {
+        *minp = min_offset;
+    }
+    if (maxp != nullptr)
+    {
+        *maxp = max_offset;
+    }
     return offset;
 }
 
@@ -179,9 +202,6 @@ void SyncManager::manageDrift(float offset)
         return;
     }
 
-    static const float Kp = 0.4;
-    static const float Ki = 0.2;
-    static const float Kd = 0.6;
 
     uint32_t interval = now - _drift_start_time;
     if (interval >= PID_INTERVAL)
@@ -192,17 +212,17 @@ void SyncManager::manageDrift(float offset)
         // Note that the integral is what builds up to compensate for any natural drift
         // in the rtc, with a ds3231 (w/temperature controled oscillator) thats a max
         // of 2ppm.  Also 64 is half the max we can adjust in either direction
-        if ((_integral*Ki) > 64.0)
+        if ((_integral*_Ki) > 64.0)
         {
-            _integral = 64.0/Ki;
+            _integral = 64.0/_Ki;
         }
-        else if ((_integral*Ki) < -64.0)
+        else if ((_integral*_Ki) < -64.0)
         {
-            _integral = -64.0/Ki;
+            _integral = -64.0/_Ki;
         }
         float derivative = error - _previous_error;
         _previous_error = error;
-        float output = Kp*error + Ki*_integral + Kd*derivative + _bias;
+        float output = _Kp*error + _Ki*_integral + _Kd*derivative + _bias;
         output = round(output);
         if (output > 127)
         {
@@ -211,10 +231,6 @@ void SyncManager::manageDrift(float offset)
         if (output < -127)
         {
             output = -127;
-        }
-        if (_rtc.getAgeOffset() != output)
-        {
-            _rtc.setAgeOffset(output);
         }
 
         int32_t min_offset = _offset_data[0];
@@ -231,8 +247,14 @@ void SyncManager::manageDrift(float offset)
             }
 
         }
-        ESP_LOGD(TAG, "::manageDrift: offset=%0.1f/%d/%d error=%0.1f integral=%0.1f derivative=%0.1f bias=%0.1f output=%0.1f",
-                 offset, min_offset, max_offset, error, _integral, derivative, _bias, output);
+
+        if (_rtc.getAgeOffset() != output)
+        {
+            _rtc.setAgeOffset(output);
+            ESP_LOGI(TAG, "::manageDrift: target=%0.1f offset=%0.1f/%d/%d error=%0.1f i=%0.1f d=%0.1f bias=%0.1f out=%0.1f",
+                    _target, offset, min_offset, max_offset, error, _integral, derivative, _bias, output);
+        }
+
         _drift_start_time = now;
     }
 }
