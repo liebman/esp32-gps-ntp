@@ -219,8 +219,15 @@ void app_main()
 
     while(true)
     {
+        struct timeval gps_tv;
+        gps_pps.getTime(&gps_tv);
+        time_t gps_time = gps.getRMCTime();
         bool now_valid = gps.getValid();
-        if (was_valid != now_valid)
+        if (was_valid != now_valid
+        || (now_valid 
+            && gps_tv.tv_usec > 800000 
+            && gps_tv.tv_usec < 900000 
+            && gps_time != gps_tv.tv_sec))
         {
             if (now_valid)
             {
