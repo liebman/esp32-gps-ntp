@@ -2,7 +2,11 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 
+#ifdef LV_LVGL_H_INCLUDE_SIMPLE
+#include "lvgl.h"
+#else
 #include "lvgl/lvgl.h"
+#endif
 #include "lvgl_helpers.h"
 
 #include "LVLabel.h"
