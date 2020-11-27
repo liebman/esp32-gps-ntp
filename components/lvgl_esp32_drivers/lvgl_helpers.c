@@ -10,8 +10,8 @@
 #include "lvgl_helpers.h"
 #include "esp_log.h"
 
-#include "disp_spi.h"
-#include "tp_spi.h"
+#include "lvgl_tft/disp_spi.h"
+#include "lvgl_touch/tp_spi.h"
 
 #include "lvgl_spi_conf.h"
 #include "lvgl_i2c_conf.h"
@@ -52,18 +52,18 @@ void lvgl_driver_init(void)
     ESP_LOGI(TAG, "Display hor size: %d, ver size: %d", LV_HOR_RES_MAX, LV_VER_RES_MAX);
     ESP_LOGI(TAG, "Display buffer size: %d", DISP_BUF_SIZE);
 
-#if defined (CONFIG_LVGL_TFT_DISPLAY_CONTROLLER_FT81X)
+#if defined (CONFIG_LV_TFT_DISPLAY_CONTROLLER_FT81X)
     ESP_LOGI(TAG, "Initializing SPI master for FT81X");
 
     lvgl_spi_driver_init(TFT_SPI_HOST,
         DISP_SPI_MISO, DISP_SPI_MOSI, DISP_SPI_CLK,
         SPI_BUS_MAX_TRANSFER_SZ, 1,
-        -1, -1);
+        DISP_SPI_IO2, DISP_SPI_IO3);
     
     disp_spi_add_device(TFT_SPI_HOST);
     disp_driver_init();
 
-#if defined (CONFIG_LVGL_TOUCH_CONTROLLER_FT81X)
+#if defined (CONFIG_LV_TOUCH_CONTROLLER_FT81X)
     touch_driver_init();
 #endif
 
@@ -101,18 +101,18 @@ void lvgl_driver_init(void)
 #endif
 
 /* Display controller initialization */
-#if defined CONFIG_LVGL_TFT_DISPLAY_PROTOCOL_SPI
+#if defined CONFIG_LV_TFT_DISPLAY_PROTOCOL_SPI
     ESP_LOGI(TAG, "Initializing SPI master for display");
     
     lvgl_spi_driver_init(TFT_SPI_HOST,
         DISP_SPI_MISO, DISP_SPI_MOSI, DISP_SPI_CLK,
         SPI_BUS_MAX_TRANSFER_SZ, 1,
-        -1, -1);
+        DISP_SPI_IO2, DISP_SPI_IO3);
     
     disp_spi_add_device(TFT_SPI_HOST);
     
     disp_driver_init();
-#elif defined (CONFIG_LVGL_TFT_DISPLAY_PROTOCOL_I2C)
+#elif defined (CONFIG_LV_TFT_DISPLAY_PROTOCOL_I2C)
     ESP_LOGI(TAG, "Initializing I2C master for display");
     /* Init the i2c master on the display driver code */
     lvgl_i2c_driver_init(DISP_I2C_PORT,
@@ -125,8 +125,8 @@ void lvgl_driver_init(void)
 #endif
 
 /* Touch controller initialization */
-#if CONFIG_LVGL_TOUCH_CONTROLLER != TOUCH_CONTROLLER_NONE
-    #if defined (CONFIG_LVGL_TOUCH_DRIVER_PROTOCOL_SPI)
+#if CONFIG_LV_TOUCH_CONTROLLER != TOUCH_CONTROLLER_NONE
+    #if defined (CONFIG_LV_TOUCH_DRIVER_PROTOCOL_SPI)
         ESP_LOGI(TAG, "Initializing SPI master for touch");
         
         lvgl_spi_driver_init(TOUCH_SPI_HOST,
@@ -137,7 +137,7 @@ void lvgl_driver_init(void)
         tp_spi_add_device(TOUCH_SPI_HOST);
         
         touch_driver_init();
-    #elif defined (CONFIG_LVGL_TOUCH_DRIVER_PROTOCOL_I2C)
+    #elif defined (CONFIG_LV_TOUCH_DRIVER_PROTOCOL_I2C)
         ESP_LOGI(TAG, "Initializing I2C master for touch");
         
         lvgl_i2c_driver_init(TOUCH_I2C_PORT,
@@ -145,9 +145,9 @@ void lvgl_driver_init(void)
             TOUCH_I2C_SPEED_HZ);
         
         touch_driver_init();
-    #elif defined (CONFIG_LVGL_TOUCH_DRIVER_ADC)
+    #elif defined (CONFIG_LV_TOUCH_DRIVER_ADC)
         touch_driver_init();
-    #elif defined (CONFIG_LVGL_TOUCH_DRIVER_DISPLAY)
+    #elif defined (CONFIG_LV_TOUCH_DRIVER_DISPLAY)
         touch_driver_init();
     #else
     #error "No protocol defined for touch controller"
@@ -207,8 +207,9 @@ bool lvgl_spi_driver_init(int host,
     };
 
     ESP_LOGI(TAG, "Configuring SPI host %s (%d)", spi_names[host], host);
-    ESP_LOGI(TAG, "MISO pin: %d, MOSI pin: %d, SCLK pin: %d",
-        miso_pin, mosi_pin, sclk_pin);
+    ESP_LOGI(TAG, "MISO pin: %d, MOSI pin: %d, SCLK pin: %d, IO2/WP pin: %d, IO3/HD pin: %d",
+        miso_pin, mosi_pin, sclk_pin, quadwp_pin, quadhd_pin);
+
     ESP_LOGI(TAG, "Max transfer size: %d (bytes)", max_transfer_sz);
 
     spi_bus_config_t buscfg = {

@@ -50,7 +50,7 @@ bool Display::begin()
 
     /* Use double buffered when not working with monochrome displays */
     static lv_color_t buf1[DISP_BUF_SIZE];
-#ifndef CONFIG_LVGL_TFT_DISPLAY_MONOCHROME
+#ifndef CONFIG_LV_TFT_DISPLAY_MONOCHROME
     static lv_color_t buf2[DISP_BUF_SIZE];
 #endif
 
@@ -61,13 +61,13 @@ bool Display::begin()
     /* Initialize the working buffer depending on the selected display */
 
     ESP_LOGI(TAG,  "calling: lv_disp_buf_init");
-#if defined CONFIG_LVGL_TFT_DISPLAY_CONTROLLER_IL3820 \
-    || defined CONFIG_LVGL_TFT_DISPLAY_CONTROLLER_JD79653A \
-    || defined CONFIG_LVGL_TFT_DISPLAY_CONTROLLER_UC8151D
+#if defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_IL3820 \
+    || defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_JD79653A \
+    || defined CONFIG_LV_TFT_DISPLAY_CONTROLLER_UC8151D
     /* Actual size in pixel, not bytes and use single buffer */
     size_in_px *= 8;
     lv_disp_buf_init(&disp_buf, buf1, NULL, size_in_px);
-#elif defined CONFIG_LVGL_TFT_DISPLAY_MONOCHROME
+#elif defined CONFIG_LV_TFT_DISPLAY_MONOCHROME
     lv_disp_buf_init(&disp_buf, buf1, NULL, size_in_px);
 #else
     lv_disp_buf_init(&disp_buf, buf1, buf2, size_in_px);
@@ -81,7 +81,7 @@ bool Display::begin()
     /* When using a monochrome display we need to register the callbacks:
      * - rounder_cb
      * - set_px_cb */
-#ifdef CONFIG_LVGL_TFT_DISPLAY_MONOCHROME
+#ifdef CONFIG_LV_TFT_DISPLAY_MONOCHROME
     disp_drv.rounder_cb = disp_driver_rounder;
     disp_drv.set_px_cb = disp_driver_set_px;
 #endif
@@ -91,7 +91,7 @@ bool Display::begin()
     lv_disp_drv_register(&disp_drv);
 
     /* Register an input device when enabled on the menuconfig */
-#if CONFIG_LVGL_TOUCH_CONTROLLER != TOUCH_CONTROLLER_NONE
+#if CONFIG_LV_TOUCH_CONTROLLER != TOUCH_CONTROLLER_NONE
     ESP_LOGI(TAG,  "calling: lv_indev_drv_init");
     lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
