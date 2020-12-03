@@ -8,4 +8,9 @@
 /sdkconfig.old
 /sdkconfig.defaults.old
 .DS_Store
+*-bak
+*.net
+*.gbr
+*.zip
+*.drl
 
