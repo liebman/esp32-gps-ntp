@@ -95,6 +95,7 @@ FieldText::FieldText(LVBase* parent, const char* label, uint16_t length, std::fu
             // setup the kb actions to cancle or save
             _kb_submit_action = submit;
             _kb_cancel_action = cancel;
+            _keyboard->setMode(_mode);
             _keyboard->setTextArea(_textarea);
             _keyboard->setParent(_cont);
             _keyboard->alignY(_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0);
@@ -119,4 +120,9 @@ const char* FieldText::getText()
 void FieldText::setPasswordMode(bool en)
 {
     _textarea->setPasswordMode(en);
+}
+
+void FieldText::setKeyboardMode(lv_keyboard_mode_t mode)
+{
+    _mode = mode;
 }

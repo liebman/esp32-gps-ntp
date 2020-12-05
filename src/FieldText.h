@@ -15,12 +15,13 @@ public:
     void setText(const char* text);
     const char* getText();
     void setPasswordMode(bool en);
+    void setKeyboardMode(lv_keyboard_mode_t mode);
 
 private:
     LVContainer* _cont;
     LVLabel*     _label;
     LVTextArea*  _textarea;
-
+    lv_keyboard_mode_t _mode = LV_KEYBOARD_MODE_TEXT_LOWER;
     static LVStyle* _container_style;
     static LVStyle* _textarea_style;
     static LVKeyboard* _keyboard;

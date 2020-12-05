@@ -76,6 +76,7 @@ PageConfig::PageConfig(Config& config, ApplyCB apply_cb)
     char buf[32];
     snprintf(buf, sizeof(buf)-1, "%0f", _config.getBias());
     _bias->setText(buf);
+    _bias->setKeyboardMode(LV_KEYBOARD_MODE_NUM);
 
     _target = new FieldText(fcont, "Target:", 32,
             [this](){
@@ -88,6 +89,7 @@ PageConfig::PageConfig(Config& config, ApplyCB apply_cb)
             });
     snprintf(buf, sizeof(buf)-1, "%0f", _config.getTarget());
     _target->setText(buf);
+    _target->setKeyboardMode(LV_KEYBOARD_MODE_NUM);
 
     LVContainer* ctrls = new LVContainer(cont);
     ctrls->setFit(LV_FIT_TIGHT);
