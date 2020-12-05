@@ -32,10 +32,10 @@ PageConfig::PageConfig(Config& config, ApplyCB apply_cb)
     _page->addStyle(LV_PAGE_PART_SCROLLABLE, &_contrainer_style);
 
     LVContainer* cont = new LVContainer(_page);
-    cont->setFit(LV_FIT_PARENT/*, LV_FIT_TIGHT*/);
+    cont->setFit(LV_FIT_PARENT, LV_FIT_TIGHT);
     cont->addStyle(LV_CONT_PART_MAIN, &_contrainer_style);
     cont->setLayout(LV_LAYOUT_COLUMN_MID);
-    cont->align(nullptr, LV_ALIGN_CENTER, 0, 0);
+    cont->align(nullptr, LV_ALIGN_IN_TOP_MID, 0, 0);
     cont->setDragParent(true);
 
     LVContainer* fcont = new LVContainer(cont);
