@@ -26,12 +26,6 @@ PageConfig::PageConfig(Config& config, ApplyCB apply_cb)
     _contrainer_style.setBorderWidth(LV_STATE_DEFAULT, 0);
     _contrainer_style.setShadowWidth(LV_STATE_DEFAULT, 0);
 
-    _textarea_style.setPadInner(LV_STATE_DEFAULT, LV_DPX(2));
-    _textarea_style.setPad(LV_STATE_DEFAULT, LV_DPX(1), LV_DPX(1), LV_DPX(1), LV_DPX(1));
-    _textarea_style.setMargin(LV_STATE_DEFAULT, 0, 0, 0, 0);
-    _textarea_style.setBorderWidth(LV_STATE_DEFAULT, 1);
-    _textarea_style.setShadowWidth(LV_STATE_DEFAULT, 0);
-
     _button_style.setPad(LV_STATE_DEFAULT, LV_DPX(4), LV_DPX(4), LV_DPX(4), LV_DPX(4));
     _button_style.setMargin(LV_STATE_DEFAULT, 0, 0, 0, 0);
 

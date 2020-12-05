@@ -23,7 +23,6 @@ private:
     ApplyCB    _apply_cb;
 
     LVStyle    _contrainer_style;
-    LVStyle    _textarea_style;
     LVStyle    _button_style;
 
     LVPage*    _page;
