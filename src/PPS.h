@@ -16,6 +16,8 @@ typedef struct pps_data
     volatile uint32_t pps_min;
     volatile uint32_t pps_max;
     volatile uint32_t pps_interval;
+    volatile uint32_t pps_pin_bit;
+    volatile uint32_t pps_status_reg;
 } pps_data_t;
 
 class PPS

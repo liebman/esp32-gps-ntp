@@ -82,6 +82,10 @@ void PagePPS::update()
         snprintf(buf, sizeof(buf)-1, "GPS Interval: %07u / %07u",timer_now - gps_timer_last, _gps_pps.getTimerInterval());
         _gps_interval->setText(buf);
         gps_timer_last = timer_now;
+#if 0
+        extern pps_data_t gps_pps_data;
+        ESP_LOGI(TAG, "pps_pin_bit: 0x%08x pps_status_reg: 0x%08x", gps_pps_data.pps_pin_bit, gps_pps_data.pps_status_reg);
+#endif
     }
 
     snprintf(buf, sizeof(buf)-1, "GPS Min/Max: %06u / %07u",

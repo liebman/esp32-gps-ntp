@@ -18,16 +18,22 @@ _l5_intr_stack:
     .space      L5_INTR_STACK_SIZE
 
 
+#define STATUS_OFFSET   0
+#define W1TC_OFFSET     8
+
 #define LATENCY_GPIO_NUM    2
 #define LATENCY_GPIO_BIT    (1<<LATENCY_GPIO_NUM)
 
-#define PPS_DATA_SIZE   24
+#define PPS_DATA_SIZE   32
 #define PPS_PIN_OFFSET  0  /* pin number */
 #define PPS_LAST_OFFSET 4  /* timer value for last interrupt, used to computer microseconds */
 #define PPS_TIME_OFFSET 8  /* time in seconds */
 #define PPS_MIN         12 /* min */
 #define PPS_MAX         16 /* max */
 #define PPS_INTERVAL    20
+#define PPS_PIN_BIT     24
+#define PPS_STATUS_REG  28
+
 
     .align      4
 
@@ -72,16 +78,37 @@ xt_highint5:
 
     movi    a2, gps_pps_data /* TODO: use more generic label */
 
-#if 0
+#if 1
 check_intr_status:
-    /* generate pin mask in a3 */
+    /* TODO: check a2 for being at or pastpps_entry_end and exit */
+    /* generate pin mask in a3 & intr status reg in a5 */
+    movi    a5, GPIO_STATUS_REG
     l32i    a3, a2, PPS_PIN_OFFSET
+    movi    a4, 32
+    beq     a3, a4, make_intr_bit
+    blt     a3, a4, make_intr_bit
+    sub     a3, a3, a4
+    movi    a5, GPIO_STATUS1_REG
+
+make_intr_bit:
     ssl     a3
     movi    a3, 1
     sll     a3, a3
 
-    movi    a5, GPIO_STATUS_W1TC_REG
-    s32i    a3, a2, 0
+    /* TODO: remove this debug hack */
+    s32i    a3, a2, PPS_PIN_BIT
+    s32i    a5, a2, PPS_STATUS_REG
+
+    /* TODO check status and loop for PPS instances */
+
+
+    /* clear interrupt bit */
+    s32i    a3, a5, W1TC_OFFSET
+
+#if 0
+    /* use if double interrupts? */
+    l32i    a2, a5, STATUS_OFFSET
+#endif
 #endif
 
     /* store last value */
@@ -113,6 +140,7 @@ set_min:
     s32i    a3, a2, PPS_MIN
 
 exit_interrupt:
+#if 0
     /* Clear interupt on GPIO26 */
     l32i    a3, a2, PPS_PIN_OFFSET
     ssl     a3
@@ -121,16 +149,13 @@ exit_interrupt:
 
     movi    a2, GPIO_STATUS_W1TC_REG
     s32i    a3, a2, 0
+#endif
 
     /* clear the latency pin */
     movi    a2, GPIO_OUT_W1TC_REG
     movi    a0, LATENCY_GPIO_BIT
     s32i    a0, a2, 0
-#if 1
-    /* use if double interrupts? */
-    movi    a2, GPIO_STATUS_W1TC_REG
-    l32i    a2, a2, 0
-#endif
+
     /* Done. Restore registers and return. */
     movi    a0, _l5_intr_stack
     l32i    a2, a0, L5_INTR_A2_OFFSET
