@@ -6,33 +6,138 @@
 #include "sdkconfig.h"
 #include "soc/soc.h"
 #include "soc/gpio_reg.h"
-#include "soc/dport_reg.h"
+#include "soc/timer_group_reg.h"
 
-#if 0
-#define L5_INTR_STACK_SIZE  12
+#define L5_INTR_STACK_SIZE  16
+#define L5_INTR_A2_OFFSET   0
+#define L5_INTR_A3_OFFSET   4
+#define L5_INTR_A4_OFFSET   8
+#define L5_INTR_A5_OFFSET   12
     .data
 _l5_intr_stack:
     .space      L5_INTR_STACK_SIZE
-#endif
+
+
+#define LATENCY_GPIO_NUM    2
+#define LATENCY_GPIO_BIT    (1<<LATENCY_GPIO_NUM)
+
+#define PPS_DATA_SIZE   24
+#define PPS_PIN_OFFSET  0  /* pin number */
+#define PPS_LAST_OFFSET 4  /* timer value for last interrupt, used to computer microseconds */
+#define PPS_TIME_OFFSET 8  /* time in seconds */
+#define PPS_MIN         12 /* min */
+#define PPS_MAX         16 /* max */
+#define PPS_INTERVAL    20
+
+    .align      4
+
+    .global     gps_pps_data
+    .type       gps_pps_data,@object
+    .size       gps_pps_data,PPS_DATA_SIZE
+gps_pps_data:
+    .space      PPS_DATA_SIZE
+
+    .global     rtc_pps_data
+    .type       rtc_pps_data,@object
+    .size       rtc_pps_data,PPS_DATA_SIZE
+rtc_pps_data:
+    .space      PPS_DATA_SIZE
+
+pps_entry_end:
+
 
     .section .iram1,"ax"
     .global     xt_highint5
     .type       xt_highint5,@function
     .align      4
 xt_highint5:
-#if 0
-    /* Clear interupt on GPIO26 */
-    movi    a14, GPIO_STATUS_W1TC_REG
-    movi    a15, (1 << 26)
-    s32i    a15, a14, 0
+    /* Save A2, A3, A4, A5 so we can use those registers */
+    movi    a0, _l5_intr_stack
+    s32i    a2, a0, L5_INTR_A2_OFFSET
+    s32i    a3, a0, L5_INTR_A3_OFFSET
+    s32i    a4, a0, L5_INTR_A4_OFFSET
+    s32i    a5, a0, L5_INTR_A5_OFFSET
 
-    /* Increment intr_cnt */
-    movi    a14, intr_cnt
-    l32i    a15, a14, 0
-    addi    a15, a15, 1
-    s32i    a15, a14, 0
-    memw
+    /* set the latency pin */
+    movi    a2, GPIO_OUT_W1TS_REG
+    movi    a0, LATENCY_GPIO_BIT
+    s32i    a0, a2, 0
+
+    /* trigger timer update */
+    movi    a2, TIMG_T0UPDATE_REG(0)
+    s32i    a0, a2, 0
+    /* read timer value lower 32 bits */
+    movi    a2, TIMG_T0LO_REG(0)
+    l32i    a0, a2, 0
+
+    movi    a2, gps_pps_data /* TODO: use more generic label */
+
+#if 0
+check_intr_status:
+    /* generate pin mask in a3 */
+    l32i    a3, a2, PPS_PIN_OFFSET
+    ssl     a3
+    movi    a3, 1
+    sll     a3, a3
+
+    movi    a5, GPIO_STATUS_W1TC_REG
+    s32i    a3, a2, 0
 #endif
+
+    /* store last value */
+    l32i    a3, a2, PPS_LAST_OFFSET /* save previous value */
+    s32i    a0, a2, PPS_LAST_OFFSET /* store new value */
+    sub     a3, a0, a3              /* compute interval */
+
+    /* increment time */
+    l32i    a4, a2, PPS_TIME_OFFSET
+    addi    a0, a4, 1
+    s32i    a0, a2, PPS_TIME_OFFSET
+
+    /* if this is teh first second, previous value was 0 then don't compute stats */
+    blti    a4, 12, exit_interrupt
+
+    /* save the last interval */
+    s32i    a3, a2, PPS_INTERVAL
+
+check_max:
+    l32i    a0, a2, PPS_MAX
+    blt     a3, a0, check_min
+    s32i    a3, a2, PPS_MAX
+
+check_min:
+    l32i    a0, a2, PPS_MIN
+    beqz    a0, set_min /* if its zero then just store the first value */
+    blt     a0, a3, exit_interrupt
+set_min:
+    s32i    a3, a2, PPS_MIN
+
+exit_interrupt:
+    /* Clear interupt on GPIO26 */
+    l32i    a3, a2, PPS_PIN_OFFSET
+    ssl     a3
+    movi    a3, 1
+    sll     a3, a3
+
+    movi    a2, GPIO_STATUS_W1TC_REG
+    s32i    a3, a2, 0
+
+    /* clear the latency pin */
+    movi    a2, GPIO_OUT_W1TC_REG
+    movi    a0, LATENCY_GPIO_BIT
+    s32i    a0, a2, 0
+#if 1
+    /* use if double interrupts? */
+    movi    a2, GPIO_STATUS_W1TC_REG
+    l32i    a2, a2, 0
+#endif
+    /* Done. Restore registers and return. */
+    movi    a0, _l5_intr_stack
+    l32i    a2, a0, L5_INTR_A2_OFFSET
+    l32i    a3, a0, L5_INTR_A3_OFFSET
+    l32i    a4, a0, L5_INTR_A4_OFFSET
+    l32i    a5, a0, L5_INTR_A5_OFFSET
+    rsync                                   /* ensure register restored */
 
     rsr     a0, EXCSAVE_5 // restore a0
     rfi     5

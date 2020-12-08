@@ -19,6 +19,7 @@ private:
     LVPage*  _page;
     LVLabel* _gps_time;
     LVLabel* _rtc_time;
+    LVLabel* _gps_interval;
     LVLabel* _gps_minmax;
     LVLabel* _gps_shortlong;
     LVLabel* _rtc_minmax;

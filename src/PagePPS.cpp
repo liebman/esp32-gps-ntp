@@ -32,6 +32,7 @@ PagePPS::PagePPS(PPS& gps_pps, PPS& rtc_pps)
 
         _gps_time      = new LVLabel(cont);
         _rtc_time      = new LVLabel(cont);
+        _gps_interval  = new LVLabel(cont);
         _gps_minmax    = new LVLabel(cont);
         _gps_shortlong = new LVLabel(cont);
         _rtc_minmax    = new LVLabel(cont);
@@ -74,6 +75,15 @@ void PagePPS::update()
     fmtTime("RTC PPS: ", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
     _rtc_time->setText(buf);
 
+    static uint32_t gps_timer_last = 0;
+    uint32_t timer_now = _gps_pps.getTimerLast();
+    if (gps_timer_last != timer_now)
+    {
+        snprintf(buf, sizeof(buf)-1, "GPS Interval: %07u / %07u",timer_now - gps_timer_last, _gps_pps.getTimerInterval());
+        _gps_interval->setText(buf);
+        gps_timer_last = timer_now;
+    }
+
     snprintf(buf, sizeof(buf)-1, "GPS Min/Max: %06u / %07u",
             _gps_pps.getTimerMin(),_gps_pps.getTimerMax());
     _gps_minmax->setText(buf);
@@ -92,4 +102,5 @@ void PagePPS::update()
 
     snprintf(buf, sizeof(buf)-1, "RTC Offset: %d", _rtc_pps.getOffset());
     _rtc_offset->setText(buf);
+
 }

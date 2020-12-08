@@ -265,7 +265,7 @@ void SyncManager::process()
     struct tm tm;
     _rtc.getTime(&tm);
     _rtc_time = mktime(&tm);
-
+#if 0
     // if the GPS is not valid then reset the offset and return
     if (!_gps.getValid())
     {
@@ -304,6 +304,7 @@ void SyncManager::process()
     }
 
     manageDrift(offset);
+#endif
 }
 
 void SyncManager::task(void* data)

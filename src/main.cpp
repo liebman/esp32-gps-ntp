@@ -9,6 +9,7 @@
 #include "LatencyPin.h"
 #include "Network.h"
 #include "DS3231.h"
+#include "MicroSecondTimer.h"
 #include "PPS.h"
 #include "GPS.h"
 #include "NTP.h"
@@ -51,9 +52,18 @@ extern "C" {
 #define TFT_LED_SEL (GPIO_SEL_4)
 
 static const char* TAG = "main";
+
+
+extern pps_data_t rtc_pps_data; // in highint5.S
+extern pps_data_t gps_pps_data; // in highint5.S
+
+//#define NO_GPS_PPS
+#define NO_RTC_PPS
+
 static Config config;
-static PPS gps_pps;
-static PPS rtc_pps(&gps_pps); // use gps_pps as ref.
+static MicroSecondTimer usec_timer;
+static PPS gps_pps(usec_timer, &gps_pps_data);
+static PPS rtc_pps(usec_timer, &rtc_pps_data, &gps_pps); // use gps_pps as ref.
 static GPS gps;
 static DS3231 rtc;
 static NTP ntp(rtc_pps);
@@ -139,12 +149,15 @@ static void init(void* data)
         ESP_LOGE(TAG, "failed to start gps!");
     }
 
+#ifndef NO_GPS_PPS
     // start pps watching gps
     if (!gps_pps.begin(GPS_PPS_PIN))
     {
         ESP_LOGE(TAG, "failed to start GPS pps!");
     }
+#endif
 
+#ifndef NO_RTC_PPS
     // start pps watching rtc
     if (!rtc_pps.begin(RTC_PPS_PIN, true))
     {
@@ -163,6 +176,7 @@ static void init(void* data)
     struct tm tm;
     rtc.getTime(&tm);
     rtc_pps.setTime(mktime(&tm));
+#endif
 
     // start NTP services
     ntp.begin();
@@ -253,7 +267,7 @@ void app_main()
         }
 
         time_t now = time(nullptr);
-        
+
         if (now_valid)
         {
             // detect time jump when time is set.
