@@ -99,9 +99,6 @@ make_intr_bit:
     s32i    a3, a2, PPS_PIN_BIT
     s32i    a5, a2, PPS_STATUS_REG
 
-    /* TODO check status and loop for PPS instances */
-
-
     /* clear interrupt bit */
     s32i    a3, a5, W1TC_OFFSET
 
@@ -139,7 +136,7 @@ set_min:
     s32i    a3, a2, PPS_MIN
 
 next_pin:
-    addi    a2, a2, PPS_DATA_SIZE
+    addi    a2, a2, PPS_DATA_SIZE /* increment to the next pin */
     /* check a2 for being at or past pps_entry_end and exit */
     movi    a3, pps_entry_end
     blt     a2, a3, check_intr_status
