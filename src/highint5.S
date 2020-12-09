@@ -69,6 +69,7 @@ xt_highint5:
     movi    a0, LATENCY_GPIO_BIT
     s32i    a0, a2, 0
 
+    /* load timer value into a0 */
     /* trigger timer update */
     movi    a2, TIMG_T0UPDATE_REG(0)
     s32i    a0, a2, 0
@@ -78,15 +79,14 @@ xt_highint5:
 
     movi    a2, gps_pps_data /* TODO: use more generic label */
 
-#if 1
 check_intr_status:
-    /* TODO: check a2 for being at or pastpps_entry_end and exit */
+
     /* generate pin mask in a3 & intr status reg in a5 */
     movi    a5, GPIO_STATUS_REG
     l32i    a3, a2, PPS_PIN_OFFSET
+    beqz    a3, next_pin /* if the pin number is zero then skip it */
     movi    a4, 32
-    beq     a3, a4, make_intr_bit
-    blt     a3, a4, make_intr_bit
+    bgeu    a4, a3, make_intr_bit
     sub     a3, a3, a4
     movi    a5, GPIO_STATUS1_REG
 
@@ -109,7 +109,6 @@ make_intr_bit:
     /* use if double interrupts? */
     l32i    a2, a5, STATUS_OFFSET
 #endif
-#endif
 
     /* store last value */
     l32i    a3, a2, PPS_LAST_OFFSET /* save previous value */
@@ -122,7 +121,7 @@ make_intr_bit:
     s32i    a0, a2, PPS_TIME_OFFSET
 
     /* if this is teh first second, previous value was 0 then don't compute stats */
-    blti    a4, 12, exit_interrupt
+    blti    a4, 12, next_pin
 
     /* save the last interval */
     s32i    a3, a2, PPS_INTERVAL
@@ -135,9 +134,15 @@ check_max:
 check_min:
     l32i    a0, a2, PPS_MIN
     beqz    a0, set_min /* if its zero then just store the first value */
-    blt     a0, a3, exit_interrupt
+    blt     a0, a3, next_pin
 set_min:
     s32i    a3, a2, PPS_MIN
+
+next_pin:
+    addi    a2, a2, PPS_DATA_SIZE
+    /* check a2 for being at or past pps_entry_end and exit */
+    movi    a3, pps_entry_end
+    blt     a2, a3, check_intr_status
 
 exit_interrupt:
 #if 0
