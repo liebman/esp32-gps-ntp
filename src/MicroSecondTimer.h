@@ -15,6 +15,16 @@ class MicroSecondTimer
 public:
     MicroSecondTimer();
 
+    uint32_t inline IRAM_ATTR getValueInISR()
+    {
+#if 1
+        TIMERG0.hw_timer[TIMER_0].update = 1;
+        return TIMERG0.hw_timer[TIMER_0].cnt_low;
+#else
+        return (uint32_t)timer_group_get_counter_value_in_isr(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM);
+#endif
+    }
+
     uint32_t inline IRAM_ATTR getValue()
     {
 #if 1

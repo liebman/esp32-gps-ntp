@@ -42,14 +42,23 @@ extern "C" {
 
 #define GPS_RX_PIN (GPIO_NUM_33)
 #define GPS_TX_PIN (GPIO_NUM_32)
+#ifdef NEW_BOARD
+#define GPS_PPS_PIN (GPIO_NUM_35)
+#define RTC_PPS_PIN (GPIO_NUM_26)
+#else
 #define GPS_PPS_PIN (GPIO_NUM_26)
 #define RTC_PPS_PIN (GPIO_NUM_27)
+#endif
 #define SDA_PIN (GPIO_NUM_16)
 #define SCL_PIN (GPIO_NUM_17)
-#define TCH_IRQ_PIN (GPIO_NUM_36)
-#define TCH_IRQ_SEL (GPIO_SEL_36)
 #define TFT_LED_PIN (GPIO_NUM_4)
 #define TFT_LED_SEL (GPIO_SEL_4)
+#define TCH_IRQ_PIN ((gpio_num_t)CONFIG_LV_TOUCH_PIN_IRQ)
+#if CONFIG_LV_TOUCH_PIN_IRQ < 32
+#define TCH_IRQ_SEL (1<<CONFIG_LV_TOUCH_PIN_IRQ)
+#else
+#define TCH_IRQ_SEL ((uint64_t)(((uint64_t)1)<<CONFIG_LV_TOUCH_PIN_IRQ))
+#endif
 
 static const char* TAG = "main";
 
@@ -58,7 +67,7 @@ extern pps_data_t rtc_pps_data; // in highint5.S
 extern pps_data_t gps_pps_data; // in highint5.S
 
 //#define NO_GPS_PPS
-#define NO_RTC_PPS
+//#define NO_RTC_PPS
 
 static Config config;
 static MicroSecondTimer usec_timer;
@@ -184,10 +193,10 @@ static void init(void* data)
     // start the sync manager
     syncman.begin();
 
+    new PagePPS(gps_pps, rtc_pps);
     new PageNTP(ntp, syncman);
     new PageSync(syncman);
     new PageDelta(syncman);
-    new PagePPS(gps_pps, rtc_pps);
     new PageGPS(gps);
     new PageSats(gps);
     new PageTask();

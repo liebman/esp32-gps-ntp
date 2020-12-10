@@ -8,11 +8,12 @@
 #include "soc/gpio_reg.h"
 #include "soc/timer_group_reg.h"
 
-#define L5_INTR_STACK_SIZE  16
+#define L5_INTR_STACK_SIZE  20
 #define L5_INTR_A2_OFFSET   0
 #define L5_INTR_A3_OFFSET   4
 #define L5_INTR_A4_OFFSET   8
 #define L5_INTR_A5_OFFSET   12
+#define L5_INTR_A6_OFFSET   16
     .data
 _l5_intr_stack:
     .space      L5_INTR_STACK_SIZE
@@ -63,19 +64,22 @@ xt_highint5:
     s32i    a3, a0, L5_INTR_A3_OFFSET
     s32i    a4, a0, L5_INTR_A4_OFFSET
     s32i    a5, a0, L5_INTR_A5_OFFSET
+    s32i    a6, a0, L5_INTR_A6_OFFSET
 
     /* set the latency pin */
     movi    a2, GPIO_OUT_W1TS_REG
     movi    a0, LATENCY_GPIO_BIT
     s32i    a0, a2, 0
+    memw
 
     /* load timer value into a0 */
     /* trigger timer update */
     movi    a2, TIMG_T0UPDATE_REG(0)
     s32i    a0, a2, 0
-    /* read timer value lower 32 bits */
+    memw
+    /* read timer value lower 32 bits A6 will hold this value thruout */
     movi    a2, TIMG_T0LO_REG(0)
-    l32i    a0, a2, 0
+    l32i    a6, a2, 0
 
     movi    a2, gps_pps_data /* TODO: use more generic label */
 
@@ -99,18 +103,25 @@ make_intr_bit:
     s32i    a3, a2, PPS_PIN_BIT
     s32i    a5, a2, PPS_STATUS_REG
 
+    /* check intr status for this bit */
+    l32i    a4, a5, STATUS_OFFSET
+    and     a4, a4, a3
+    beqz    a4, next_pin
+
     /* clear interrupt bit */
+    memw
     s32i    a3, a5, W1TC_OFFSET
 
-#if 0
+#if 1
     /* use if double interrupts? */
-    l32i    a2, a5, STATUS_OFFSET
+    memw
+    l32i    a4, a5, STATUS_OFFSET
 #endif
 
     /* store last value */
     l32i    a3, a2, PPS_LAST_OFFSET /* save previous value */
-    s32i    a0, a2, PPS_LAST_OFFSET /* store new value */
-    sub     a3, a0, a3              /* compute interval */
+    s32i    a6, a2, PPS_LAST_OFFSET /* store new value */
+    sub     a3, a6, a3              /* compute interval */
 
     /* increment time */
     l32i    a4, a2, PPS_TIME_OFFSET
@@ -123,36 +134,27 @@ make_intr_bit:
     /* save the last interval */
     s32i    a3, a2, PPS_INTERVAL
 
+    /* track the max interval value */
 check_max:
     l32i    a0, a2, PPS_MAX
     blt     a3, a0, check_min
     s32i    a3, a2, PPS_MAX
 
+    /* track the min interval value */
 check_min:
     l32i    a0, a2, PPS_MIN
-    beqz    a0, set_min /* if its zero then just store the first value */
+    beqz    a0, set_min             /* if its zero then just store the first value */
     blt     a0, a3, next_pin
 set_min:
     s32i    a3, a2, PPS_MIN
 
 next_pin:
-    addi    a2, a2, PPS_DATA_SIZE /* increment to the next pin */
+    addi    a2, a2, PPS_DATA_SIZE   /* increment to the next pin */
     /* check a2 for being at or past pps_entry_end and exit */
     movi    a3, pps_entry_end
     blt     a2, a3, check_intr_status
 
 exit_interrupt:
-#if 0
-    /* Clear interupt on GPIO26 */
-    l32i    a3, a2, PPS_PIN_OFFSET
-    ssl     a3
-    movi    a3, 1
-    sll     a3, a3
-
-    movi    a2, GPIO_STATUS_W1TC_REG
-    s32i    a3, a2, 0
-#endif
-
     /* clear the latency pin */
     movi    a2, GPIO_OUT_W1TC_REG
     movi    a0, LATENCY_GPIO_BIT
@@ -164,6 +166,7 @@ exit_interrupt:
     l32i    a3, a0, L5_INTR_A3_OFFSET
     l32i    a4, a0, L5_INTR_A4_OFFSET
     l32i    a5, a0, L5_INTR_A5_OFFSET
+    l32i    a6, a0, L5_INTR_A6_OFFSET
     rsync                                   /* ensure register restored */
 
     rsr     a0, EXCSAVE_5 // restore a0

@@ -2,6 +2,7 @@
 #include "LatencyPin.h"
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
+#include <string.h>
 #include <sys/time.h>
 #include "soc/soc.h"
 #include "driver/timer.h"
@@ -29,6 +30,8 @@ PPS::PPS(MicroSecondTimer& timer, pps_data_t* data, PPS* ref)
   _data(data),
   _ref(ref)
 {
+    ESP_LOGI(TAG, "pps data %u bytes @ 0x%08x", sizeof(pps_data_t), (uint32_t)data);
+//    memset(data, 0, sizeof(pps_data_t));
 }
 
 bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
@@ -66,8 +69,13 @@ bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
         ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pin);
         gpio_set_direction(_pin, GPIO_MODE_INPUT);
         // TODO: fix this!
+#ifdef NEW_BOARD
+        ESP_LOGW(TAG, "::begin TODO: fix this: 'if (_pin == 26)' !!!");
+        if (_pin == 26)
+#else
         ESP_LOGW(TAG, "::begin TODO: fix this: 'if (_pin == 27)' !!!");
         if (_pin == 27)
+#endif
         {
             gpio_set_pull_mode(_pin, GPIO_PULLUP_ONLY);
         }
@@ -97,7 +105,7 @@ int PPS::getLevel()
     return gpio_get_level(_pin);
 }
 
-#if USE_INTERRUPT_SERVICE
+#ifdef USE_INTERRUPT_SERVICE
 #ifdef USE_LEVEL_INTERRUPT
 static gpio_int_type_t next_level[2] {GPIO_INTR_HIGH_LEVEL,GPIO_INTR_LOW_LEVEL};
 #endif
@@ -115,7 +123,7 @@ void IRAM_ATTR PPS::pps(void* data)
     PPS* pps = (PPS*)data;
     LATENCY_START();
 
-    uint32_t current = esp_timer_get_time();
+    uint32_t current = pps->_timer.getValueInISR();
 
 #ifdef USE_LEVEL_INTERRUPT
 #if 0
@@ -189,14 +197,14 @@ void IRAM_ATTR PPS::pps(void* data)
         ets_printf("ERROR: %d: short (%d) @%lu lo=%d\n", pps->_pin, interval, pps->_data->pps_time, last_offset);
 #endif
         pps->_timer_short += 1;
-        pps->_timer_min = 0;
+        pps->_data->pps_min = 0;
         LATENCY_END();
         return;
     }
 
-    if (pps->_timer_min == 0 || interval < pps->_timer_min)
+    if (pps->_data->pps_min == 0 || interval < pps->_data->pps_min)
     {
-        pps->_timer_min = interval;
+        pps->_data->pps_min = interval;
     }
 
     if (interval > PPS_MISS_VALUE)
@@ -205,14 +213,14 @@ void IRAM_ATTR PPS::pps(void* data)
         ets_printf("ERROR: %d: long (%d) @%lu lo=%d\n", pps->_pin, interval, pps->_data->pps_time, last_offset);
 #endif
         pps->_timer_long += 1;
-        pps->_timer_max = 0;
+        pps->_data->pps_max = 0;
         LATENCY_END();
         return;
     }
 
-    if (pps->_timer_max == 0 || interval > pps->_timer_max)
+    if (pps->_data->pps_max == 0 || interval > pps->_data->pps_max)
     {
-        pps->_timer_max = interval;
+        pps->_data->pps_max = interval;
     }
     LATENCY_END();
 }

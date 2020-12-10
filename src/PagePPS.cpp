@@ -35,6 +35,7 @@ PagePPS::PagePPS(PPS& gps_pps, PPS& rtc_pps)
         _gps_interval  = new LVLabel(cont);
         _gps_minmax    = new LVLabel(cont);
         _gps_shortlong = new LVLabel(cont);
+        _rtc_interval  = new LVLabel(cont);
         _rtc_minmax    = new LVLabel(cont);
         _rtc_shortlong = new LVLabel(cont);
         _rtc_offset    = new LVLabel(cont);
@@ -75,18 +76,8 @@ void PagePPS::update()
     fmtTime("RTC PPS: ", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
     _rtc_time->setText(buf);
 
-    static uint32_t gps_timer_last = 0;
-    uint32_t timer_now = _gps_pps.getTimerLast();
-    if (gps_timer_last != timer_now)
-    {
-        snprintf(buf, sizeof(buf)-1, "GPS Interval: %07u / %07u",timer_now - gps_timer_last, _gps_pps.getTimerInterval());
-        _gps_interval->setText(buf);
-        gps_timer_last = timer_now;
-#if 0
-        extern pps_data_t gps_pps_data;
-        ESP_LOGI(TAG, "pps_pin_bit: 0x%08x pps_status_reg: 0x%08x", gps_pps_data.pps_pin_bit, gps_pps_data.pps_status_reg);
-#endif
-    }
+    snprintf(buf, sizeof(buf)-1, "GPS Interval: %07u", _gps_pps.getTimerInterval());
+    _gps_interval->setText(buf);
 
     snprintf(buf, sizeof(buf)-1, "GPS Min/Max: %06u / %07u",
             _gps_pps.getTimerMin(),_gps_pps.getTimerMax());
@@ -95,6 +86,9 @@ void PagePPS::update()
     snprintf(buf, sizeof(buf)-1, "Short/Long: %u / %u",
             _gps_pps.getTimerShort(), _gps_pps.getTimerLong());
     _gps_shortlong->setText(buf);
+
+    snprintf(buf, sizeof(buf)-1, "RTC Interval: %07u", _rtc_pps.getTimerInterval());
+    _rtc_interval->setText(buf);
 
     snprintf(buf, sizeof(buf)-1, "RTC Min/Max: %06u / %07u",
             _rtc_pps.getTimerMin(),_rtc_pps.getTimerMax());

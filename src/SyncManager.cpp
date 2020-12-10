@@ -265,7 +265,7 @@ void SyncManager::process()
     struct tm tm;
     _rtc.getTime(&tm);
     _rtc_time = mktime(&tm);
-#if 0
+#if 1
     // if the GPS is not valid then reset the offset and return
     if (!_gps.getValid())
     {
