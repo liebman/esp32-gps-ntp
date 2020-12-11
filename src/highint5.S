@@ -138,7 +138,7 @@ make_intr_bit:
     /* save the last interval */
     s32i    a3, a2, PPS_INTERVAL
 
-    /* TODO: add long value and reset max to 0 if exceeded */
+    /* check for long value and reset max to 0 if exceeded */
     /* A2 has data ptr */
     /* A3 has interval value */
 check_long:
@@ -151,15 +151,15 @@ check_long:
     s32i    a0, a2, PPS_LONG_OFFSET
     movi    a0, 0
     s32i    a0, a2, PPS_MAX
-    j       check_min
+    j       check_min                /* dont need to check short as we are long! */
 
     /* track the max interval value */
 check_max:
     l32i    a0, a2, PPS_MAX
-    blt     a3, a0, check_min
+    blt     a3, a0, check_short
     s32i    a3, a2, PPS_MAX
 
-    /* TODO: add short value check and reset min to 0 if exceeded */
+    /* check for short value and reset min to 0 if exceeded */
     /* A2 has data ptr */
     /* A3 has interval value */
 check_short:
