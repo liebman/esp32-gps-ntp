@@ -8,6 +8,9 @@
 #include "driver/timer.h"
 #include "MicroSecondTimer.h"
 
+//#define USE_LEVEL_INTERRUPT
+//#define USE_INTERRUPT_SERVICE
+
 typedef struct pps_data
 {
     volatile uint32_t pps_pin;
@@ -18,6 +21,9 @@ typedef struct pps_data
     volatile uint32_t pps_interval;
     volatile int32_t  pps_offset;
     volatile struct pps_data* pps_ref;
+    volatile uint32_t pps_short;
+    volatile uint32_t pps_long;
+    volatile uint32_t pps_disabled;
 } pps_data_t;
 
 class PPS
@@ -43,15 +49,10 @@ protected:
     pps_data_t*       _data;
     PPS*              _ref;
     gpio_num_t         _pin           = GPIO_NUM_NC;
-    //volatile uint32_t _last_timer   = 0;
+#ifdef USE_LEVEL_INTERRUPT
     int                 _expect_skip  = 0;
     int               _expect       = 0;
-    //volatile uint32_t _time         = 0;
-    //volatile uint32_t _timer_min    = 0;
-    //volatile uint32_t _timer_max    = 0;
-    volatile uint32_t _timer_short  = 0;
-    volatile uint32_t _timer_long   = 0;
-    volatile bool     _disabled     = false;
+#endif
 private:
     static void pps(void* data);
 

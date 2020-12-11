@@ -9,9 +9,6 @@
 
 static const char* TAG = "PPS";
 
-//#define USE_LEVEL_INTERRUPT
-//#define USE_INTERRUPT_SERVICE
-
 #if defined(CONFIG_GPSNTP_SHORT_TIME)
 #define PPS_SHORT_VALUE  CONFIG_GPSNTP_SHORT_TIME
 #else
@@ -45,7 +42,7 @@ bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
 #endif
     _pin = pps_pin;
     _data->pps_pin = pps_pin;
-
+#ifdef USE_LEVEL_INTERRUPT
     if (expect_negedge)
     {
         _expect_skip = 1;
@@ -54,6 +51,7 @@ bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
     {
         _expect_skip = 0;
     }
+#endif
 
     if (_pin != GPIO_NUM_NC)
     {
@@ -301,7 +299,7 @@ uint32_t PPS::getTimerInterval()
 */
 uint32_t PPS::getTimerShort()
 {
-    return _timer_short;
+    return _data->pps_short;
 }
 
 /**
@@ -309,7 +307,7 @@ uint32_t PPS::getTimerShort()
 */
 uint32_t PPS::getTimerLong()
 {
-    return _timer_long;
+    return _data->pps_long;
 }
 
 /**
@@ -333,5 +331,5 @@ void PPS::resetOffset()
 */
 void PPS::setDisable(bool disable)
 {
-    _disabled = disable;
+    _data->pps_disabled = disable;
 }

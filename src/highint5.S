@@ -18,23 +18,27 @@
 _l5_intr_stack:
     .space      L5_INTR_STACK_SIZE
 
+/* GPIO interrupt register offsets */
+#define STATUS_OFFSET    0
+#define W1TC_OFFSET      8
 
-#define STATUS_OFFSET   0
-#define W1TC_OFFSET     8
+#define LATENCY_GPIO_NUM 2
+#define LATENCY_GPIO_BIT (1<<LATENCY_GPIO_NUM)
+#define PPS_SHORT_VALUE  999500
+#define PPS_LONG_VALUE   1000500
 
-#define LATENCY_GPIO_NUM    2
-#define LATENCY_GPIO_BIT    (1<<LATENCY_GPIO_NUM)
-
-#define PPS_DATA_SIZE   32
-#define PPS_PIN_OFFSET  0  /* pin number */
-#define PPS_LAST_OFFSET 4  /* timer value for last interrupt, used to computer microseconds */
-#define PPS_TIME_OFFSET 8  /* time in seconds */
-#define PPS_MIN         12 /* min */
-#define PPS_MAX         16 /* max */
-#define PPS_INTERVAL    20
-#define PPS_DELTA       24
-#define PPS_REF         28
-
+#define PPS_DATA_SIZE    44
+#define PPS_PIN_OFFSET   0  /* pin number */
+#define PPS_LAST_OFFSET  4  /* timer value for last interrupt, used to computer microseconds */
+#define PPS_TIME_OFFSET  8  /* time in seconds */
+#define PPS_MIN          12 /* min */
+#define PPS_MAX          16 /* max */
+#define PPS_INTERVAL     20 /* last interval */
+#define PPS_DELTA        24 /* offset from ref if ref not 0 */
+#define PPS_REF          28 /* pointer to ref data or 0 */
+#define PPS_SHORT_OFFSET 32 /* short counter */
+#define PPS_LONG_OFFSET  36 /* long counter */
+#define PPS_DISABLED     40 /* disabled flag */
 
     .align      4
 
@@ -114,6 +118,10 @@ make_intr_bit:
     l32i    a4, a5, STATUS_OFFSET
 #endif
 
+    /* check for disabled */
+    l32i    a3, a2, PPS_DISABLED
+    bnez    a3, next_pin
+
     /* store last value */
     l32i    a3, a2, PPS_LAST_OFFSET /* save previous value */
     s32i    a6, a2, PPS_LAST_OFFSET /* store new value */
@@ -130,11 +138,41 @@ make_intr_bit:
     /* save the last interval */
     s32i    a3, a2, PPS_INTERVAL
 
+    /* TODO: add long value and reset max to 0 if exceeded */
+    /* A2 has data ptr */
+    /* A3 has interval value */
+check_long:
+    movi    a0, PPS_LONG_VALUE
+    blt     a3, a0, check_max
+
+    /* increment the long count and clear the max value, skip max value check */
+    l32i    a0, a2, PPS_LONG_OFFSET
+    addi    a0, a0, 1
+    s32i    a0, a2, PPS_LONG_OFFSET
+    movi    a0, 0
+    s32i    a0, a2, PPS_MAX
+    j       check_min
+
     /* track the max interval value */
 check_max:
     l32i    a0, a2, PPS_MAX
     blt     a3, a0, check_min
     s32i    a3, a2, PPS_MAX
+
+    /* TODO: add short value check and reset min to 0 if exceeded */
+    /* A2 has data ptr */
+    /* A3 has interval value */
+check_short:
+    movi    a0, PPS_SHORT_VALUE
+    blt     a0, a3, check_min
+
+    /* increment the short count and clear the min value, skip min value check */
+    l32i    a0, a2, PPS_SHORT_OFFSET
+    addi    a0, a0, 1
+    s32i    a0, a2, PPS_SHORT_OFFSET
+    movi    a0, 0
+    s32i    a0, a2, PPS_MIN
+    j       do_delta
 
     /* track the min interval value */
 check_min:
