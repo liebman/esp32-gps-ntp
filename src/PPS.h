@@ -16,8 +16,8 @@ typedef struct pps_data
     volatile uint32_t pps_min;
     volatile uint32_t pps_max;
     volatile uint32_t pps_interval;
-    volatile uint32_t pps_pin_bit;
-    volatile uint32_t pps_status_reg;
+    volatile int32_t  pps_offset;
+    volatile struct pps_data* pps_ref;
 } pps_data_t;
 
 class PPS
@@ -51,7 +51,6 @@ protected:
     //volatile uint32_t _timer_max    = 0;
     volatile uint32_t _timer_short  = 0;
     volatile uint32_t _timer_long   = 0;
-    volatile int32_t  _offset       = 0;
     volatile bool     _disabled     = false;
 private:
     static void pps(void* data);

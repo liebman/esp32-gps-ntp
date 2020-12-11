@@ -32,8 +32,8 @@ _l5_intr_stack:
 #define PPS_MIN         12 /* min */
 #define PPS_MAX         16 /* max */
 #define PPS_INTERVAL    20
-#define PPS_PIN_BIT     24
-#define PPS_STATUS_REG  28
+#define PPS_DELTA       24
+#define PPS_REF         28
 
 
     .align      4
@@ -99,10 +99,6 @@ make_intr_bit:
     movi    a3, 1
     sll     a3, a3
 
-    /* TODO: remove this debug hack */
-    s32i    a3, a2, PPS_PIN_BIT
-    s32i    a5, a2, PPS_STATUS_REG
-
     /* check intr status for this bit */
     l32i    a4, a5, STATUS_OFFSET
     and     a4, a4, a3
@@ -144,9 +140,36 @@ check_max:
 check_min:
     l32i    a0, a2, PPS_MIN
     beqz    a0, set_min             /* if its zero then just store the first value */
-    blt     a0, a3, next_pin
+    blt     a0, a3, do_delta
 set_min:
     s32i    a3, a2, PPS_MIN
+
+do_delta:
+    /* if the reference pointer is not 0 then compute offset & store in PPS_DELTA */
+    /* A0 will have curent last value */
+    /* A2 has current data ptr */
+    /* A3 will have ref last value */
+    /* A4 will have REF data ptr */
+    l32i    a4, a2, PPS_REF
+    beqz    a4, next_pin
+    memw
+    l32i    a0, a4, PPS_LAST_OFFSET
+    l32i    a3, a2, PPS_LAST_OFFSET
+    sub     a0, a3, a0 /* last - ref */
+    movi    a4, 1000000
+
+check_pos:
+    movi    a3, 500000
+    blt     a0, a3, check_neg
+    sub     a0, a0, a4
+    j       store_offset
+check_neg:
+    movi    a3, -500000
+    blt     a3, a0, store_offset
+    add     a0, a0, a4
+
+store_offset:
+    s32i    a0, a2, PPS_DELTA
 
 next_pin:
     addi    a2, a2, PPS_DATA_SIZE   /* increment to the next pin */

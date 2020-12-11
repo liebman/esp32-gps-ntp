@@ -30,8 +30,12 @@ PPS::PPS(MicroSecondTimer& timer, pps_data_t* data, PPS* ref)
   _data(data),
   _ref(ref)
 {
+    memset(data, 0, sizeof(pps_data_t));
     ESP_LOGI(TAG, "pps data %u bytes @ 0x%08x", sizeof(pps_data_t), (uint32_t)data);
-//    memset(data, 0, sizeof(pps_data_t));
+    if (ref != nullptr)
+    {
+        data->pps_ref = ref->_data;
+    }
 }
 
 bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
@@ -167,7 +171,7 @@ void IRAM_ATTR PPS::pps(void* data)
 
     if (pps->_ref != nullptr)
     {
-        last_offset = pps->_offset;
+        last_offset = _data->pps_offset;
 
         int32_t delta = pps->_data->pps_last - pps->_ref->_data->pps_last;
         // we only care about microseconds so we will keep the delta
@@ -180,7 +184,7 @@ void IRAM_ATTR PPS::pps(void* data)
         {
             delta += 1000000;
         }
-        pps->_offset = delta;
+        _data->pps_offset = delta;
     }
 
     // no stats for the first few seconds
@@ -313,7 +317,7 @@ uint32_t PPS::getTimerLong()
 */
 int32_t PPS::getOffset()
 {
-    return _offset;
+    return _data->pps_offset;
 }
 
 /**
@@ -321,7 +325,7 @@ int32_t PPS::getOffset()
 */
 void PPS::resetOffset()
 {
-    _offset = 0;
+    _data->pps_offset = 0;
 }
 
 /**
