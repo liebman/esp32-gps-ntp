@@ -6,7 +6,6 @@
 
 #include "Config.h"
 #include "Display.h"
-#include "LatencyPin.h"
 #include "Network.h"
 #include "DS3231.h"
 #include "MicroSecondTimer.h"
@@ -24,6 +23,9 @@
 #include "PageSats.h"
 #include "PageTask.h"
 #include "PageNTP.h"
+
+#define LATENCY_PIN 2
+#define LATENCY_SEL (1<<LATENCY_PIN)
 
 #ifdef __cplusplus
 //
@@ -146,9 +148,10 @@ static void init(void* data)
         ESP_LOGE(TAG, "i2c_param_config: I2C_NUM_%d %d (%s)", I2C_NUM_0, err, esp_err_to_name(err));
     }
 
-    if (!rtc.begin())
+    while (!rtc.begin())
     {
         ESP_LOGE(TAG, "failed to start rtc!");
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     // start gps watching NMEA messages
@@ -228,6 +231,7 @@ void app_main()
     ESP_LOGI(TAG, "initializing Network");
     Network::getNetwork().begin(config.getWiFiSSID(), config.getWiFiPassword());
 
+#if 0
     esp_err_t err;
 
     // lets monitor the touch input.
@@ -242,6 +246,7 @@ void app_main()
     {
         ESP_LOGE(TAG, "failed to init TOUCH IRQ pin as input: %d '%s'", err, esp_err_to_name(err));
     }
+#endif
 
     bool was_valid = false;
     bool is_on = true;
@@ -276,39 +281,44 @@ void app_main()
         }
 
         time_t now = time(nullptr);
-
-        if (now_valid)
+#if 0
+        static time_t last_report = 0;
+        if (now > last_report+60)
         {
-            // detect time jump when time is set.
-            if (now - last_time > 300)
-            {
-                last_touch = now;
-            } 
-            last_time = now;
-
-            if (gpio_get_level(TCH_IRQ_PIN) == 0)
-            {
-                last_touch = now;
-            }
-
-            if ((now - last_touch) > 3600) // 1 hr
-            {
-                if (is_on)
-                {
-                    ESP_LOGI(TAG, "turning OFF backlight");
-                    gpio_set_level(TFT_LED_PIN, 0);
-                    is_on = false;
-                }
-            }
-            else if (!is_on)
-            {
-                ESP_LOGI(TAG, "turning ON backlight");
-                gpio_set_level(TFT_LED_PIN, 1);
-                is_on = true;
-            }
-
+            ESP_LOGI(TAG, "now valid: %d is_on: %d idle: %u (%u)", now_valid, is_on, (uint32_t)now-(uint32_t)last_touch, (uint32_t)Display::getDisplay().getIdleTime());
+            last_report = now;
         }
-        //ESP_LOGI(TAG, "latency_count=%u", ulp_latency_count&0xffff);
+#endif
+        // detect time jump when time is set.
+        if (now - last_time > 300)
+        {
+            ESP_LOGI(TAG, "time jump %u seconds, reseting last_touch", (uint32_t)now-(uint32_t)last_time);
+            last_touch = now;
+        }
+        last_time = now;
+
+        if (gpio_get_level(TCH_IRQ_PIN) == 0 && gpio_get_level(TCH_IRQ_PIN) == 0)
+        {
+            //ESP_LOGI(TAG, "tch_irq: %d", gpio_get_level(TCH_IRQ_PIN));
+            last_touch = now;
+        }
+
+        if ((now - last_touch) > 3600) // 1 hr
+        {
+            if (is_on)
+            {
+                ESP_LOGI(TAG, "turning OFF backlight");
+                gpio_set_level(TFT_LED_PIN, 0);
+                is_on = false;
+            }
+        }
+        else if (!is_on)
+        {
+            ESP_LOGI(TAG, "turning ON backlight");
+            gpio_set_level(TFT_LED_PIN, 1);
+            is_on = true;
+        }
+
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

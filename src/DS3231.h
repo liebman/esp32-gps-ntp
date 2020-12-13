@@ -4,7 +4,6 @@
 #include <driver/i2c.h>
 #include <freertos/semphr.h>
 #include <time.h>
-#include "PPS.h"
 
 class DS3231
 {

@@ -92,7 +92,7 @@ bool Display::begin()
 
     ESP_LOGI(TAG,  "calling: lv_disp_drv_register");
     disp_drv.buffer = &disp_buf;
-    lv_disp_drv_register(&disp_drv);
+    _disp = lv_disp_drv_register(&disp_drv);
 
     /* Register an input device when enabled on the menuconfig */
 #if CONFIG_LV_TOUCH_CONTROLLER != TOUCH_CONTROLLER_NONE
@@ -104,7 +104,6 @@ bool Display::begin()
     ESP_LOGI(TAG,  "calling: lv_indev_drv_register");
     lv_indev_drv_register(&indev_drv);
 #endif
-
     // quite these
     esp_log_level_set("XPT2046",    ESP_LOG_WARN);
     esp_log_level_set("spi_master", ESP_LOG_WARN);
@@ -188,4 +187,9 @@ bool Display::lock(int timeout_ms)
 void Display::unlock()
 {
     xSemaphoreGiveRecursive(_lock);
+}
+
+uint32_t Display::getIdleTime()
+{
+    return lv_disp_get_inactive_time(_disp) / 1000; // return in seconds
 }

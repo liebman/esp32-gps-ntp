@@ -1,5 +1,4 @@
 #include "SyncManager.h"
-#include "LatencyPin.h"
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 
@@ -16,6 +15,8 @@
 #ifndef SYNC_TASK_CORE
 #define SYNC_TASK_CORE 1
 #endif
+
+#define LATENCY_PIN 2
 
 static const char* TAG = "SyncManager";
 

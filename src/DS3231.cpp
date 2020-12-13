@@ -1,5 +1,4 @@
 #include "DS3231.h"
-#include "LatencyPin.h"
 //#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #include "esp_log.h"
 
@@ -114,13 +113,7 @@ bool DS3231::setTime(struct tm* time)
     data[4] = dec2bcd(time->tm_mday);
     data[5] = dec2bcd(time->tm_mon + 1);
     data[6] = dec2bcd(time->tm_year - 100);
-#ifdef SETTIME_LATENCY_OUTPUT
-    gpio_set_level(LATENCY_PIN, 1);
-#endif
     bool ret = write(SECONDS, sizeof(data), data);
-#ifdef SETTIME_LATENCY_OUTPUT
-    gpio_set_level(LATENCY_PIN, 0);
-#endif
     return ret;
 }
 

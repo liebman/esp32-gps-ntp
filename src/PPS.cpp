@@ -1,5 +1,4 @@
 #include "PPS.h"
-#include "LatencyPin.h"
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 #include <string.h>
@@ -112,6 +111,7 @@ int PPS::getLevel()
 static gpio_int_type_t next_level[2] {GPIO_INTR_HIGH_LEVEL,GPIO_INTR_LOW_LEVEL};
 #endif
 
+#define LATENCY_PIN 2
 #ifdef LATENCY_OUTPUT
 #define LATENCY_START() GPIO.out_w1ts = 1 << LATENCY_PIN
 #define LATENCY_END()   GPIO.out_w1tc = 1 << LATENCY_PIN
