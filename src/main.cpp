@@ -281,7 +281,7 @@ void app_main()
         }
 
         time_t now = time(nullptr);
-#if 0
+#if 1
         static time_t last_report = 0;
         if (now > last_report+60)
         {
