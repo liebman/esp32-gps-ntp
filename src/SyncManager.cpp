@@ -102,6 +102,17 @@ void SyncManager::recordOffset()
     {
         _offset_count += 1;
     }
+
+    uint32_t gps_interval = _gpspps.getTimerInterval();
+    uint32_t rtc_interval = _rtcpps.getTimerInterval();
+    if (rtc_interval < 999950 || rtc_interval > 10000050)
+    {
+        ESP_LOGW(TAG, "::recordOffset: RTC interval out of range: %u", rtc_interval);
+    }
+    if (gps_interval < 999950 || gps_interval > 10000050)
+    {
+        ESP_LOGW(TAG, "::recordOffset: GPS interval out of range: %u", gps_interval);
+    }
 }
 
 bool SyncManager::isOffsetValid()
