@@ -55,7 +55,7 @@ bool DS3231::begin()
 #endif
 
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
-    updateReg(STATUS, EN32KHZ, OSC_STOP_FLAG|EN32KHZ);
+    updateReg(STATUS, 0, OSC_STOP_FLAG);
     updateReg(HOURS, 0, DS3231_12HR);
 
 #if 0
