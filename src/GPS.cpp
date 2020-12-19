@@ -28,8 +28,9 @@ typedef union {
 } minmea_record_t;
 
 
-GPS::GPS(uart_port_t uart_id, size_t buffer_size)
-: _uart_id(uart_id),
+GPS::GPS(MicroSecondTimer& timer, uart_port_t uart_id, size_t buffer_size)
+: _timer(timer),
+  _uart_id(uart_id),
   _buffer_size(buffer_size)
 {
 }
@@ -163,11 +164,11 @@ int GPS::getFixType()
 // from RMC
 bool GPS::getValid()
 {
-    uint64_t now = esp_timer_get_time();
+    uint64_t now = _timer.getValue64();
     uint64_t age = now - _last_rmc;
     if (_valid && age > 1500000) // its bad if older than 1.5 seconds
     {
-        ESP_LOGE(TAG, "::getValid returning false record too old %lluus", age);
+        ESP_LOGE(TAG, "::getValid returning false record too old %lluus  (now=%llu last=%llu)", age, now, _last_rmc);
         _valid = false;
         return false;
     }
@@ -233,7 +234,7 @@ void GPS::process(char* sentence)
                 _valid = false;
                 ESP_LOGE(TAG, "::process RMC failed to convert date/time!");
             }
-            _last_rmc = esp_timer_get_time();
+            _last_rmc = _timer.getValue64();
             if (_valid && !was_valid)
             {
                 _valid_since = _last_rmc;

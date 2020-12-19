@@ -75,7 +75,7 @@ static Config config;
 static MicroSecondTimer usec_timer;
 static PPS gps_pps(usec_timer, &gps_pps_data);
 static PPS rtc_pps(usec_timer, &rtc_pps_data, &gps_pps); // use gps_pps as ref.
-static GPS gps;
+static GPS gps(usec_timer);
 static DS3231 rtc;
 static NTP ntp(rtc_pps);
 static SyncManager syncman(gps, rtc, gps_pps, rtc_pps);
@@ -129,7 +129,7 @@ static void init(void* data)
     // turn the backlight on.
     gpio_set_level(TFT_LED_PIN, 1);
 
-    // initialize I2C_NUM_0 for the MCP23017T
+    // initialize I2C_NUM_0
     err = i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
     if (err != ESP_OK)
     {
@@ -231,23 +231,6 @@ void app_main()
     ESP_LOGI(TAG, "initializing Network");
     Network::getNetwork().begin(config.getWiFiSSID(), config.getWiFiPassword());
 
-#if 0
-    esp_err_t err;
-
-    // lets monitor the touch input.
-    gpio_config_t io_conf;
-    io_conf.pin_bit_mask = TCH_IRQ_SEL;
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    err = gpio_config(&io_conf);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "failed to init TOUCH IRQ pin as input: %d '%s'", err, esp_err_to_name(err));
-    }
-#endif
-
     bool was_valid = false;
     bool is_on = true;
     time_t last_touch = time(nullptr);
@@ -285,7 +268,7 @@ void app_main()
         static time_t last_report = 0;
         if (now > last_report+60)
         {
-            ESP_LOGI(TAG, "now valid: %d is_on: %d idle: %u (%u)", now_valid, is_on, (uint32_t)now-(uint32_t)last_touch, (uint32_t)Display::getDisplay().getIdleTime());
+            ESP_LOGI(TAG, "now valid: %d is_on: %d idle: %u", now_valid, is_on, (uint32_t)now-(uint32_t)last_touch);
             last_report = now;
         }
 #endif
