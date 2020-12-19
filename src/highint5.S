@@ -8,12 +8,13 @@
 #include "soc/gpio_reg.h"
 #include "soc/timer_group_reg.h"
 
-#define L5_INTR_STACK_SIZE  20
 #define L5_INTR_A2_OFFSET   0
 #define L5_INTR_A3_OFFSET   4
 #define L5_INTR_A4_OFFSET   8
 #define L5_INTR_A5_OFFSET   12
 #define L5_INTR_A6_OFFSET   16
+#define L5_INTR_SAR_OFFSET  20
+#define L5_INTR_STACK_SIZE  24
     .data
 _l5_intr_stack:
     .space      L5_INTR_STACK_SIZE
@@ -69,6 +70,8 @@ xt_highint5:
     s32i    a4, a0, L5_INTR_A4_OFFSET
     s32i    a5, a0, L5_INTR_A5_OFFSET
     s32i    a6, a0, L5_INTR_A6_OFFSET
+    rsr     a6, SAR
+    s32i    a6, a0, L5_INTR_SAR_OFFSET
 
     /* set the latency pin */
     movi    a2, GPIO_OUT_W1TS_REG
@@ -84,6 +87,7 @@ xt_highint5:
     /* read timer value lower 32 bits A6 will hold this value thruout */
     movi    a2, TIMG_T0LO_REG(0)
     l32i    a6, a2, 0
+    l32i    a6, a2, 0 /* load again as sometimes its not updated yet? */
 
     movi    a2, gps_pps_data /* TODO: use more generic label */
 
@@ -223,6 +227,8 @@ exit_interrupt:
 
     /* Done. Restore registers and return. */
     movi    a0, _l5_intr_stack
+    l32i    a2, a0, L5_INTR_SAR_OFFSET
+    wsr     a2, SAR
     l32i    a2, a0, L5_INTR_A2_OFFSET
     l32i    a3, a0, L5_INTR_A3_OFFSET
     l32i    a4, a0, L5_INTR_A4_OFFSET
