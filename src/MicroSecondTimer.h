@@ -36,6 +36,12 @@ public:
         return (uint32_t)value;
 #endif
     }
+    uint64_t inline IRAM_ATTR getValue64()
+    {
+        uint64_t value;
+        timer_get_counter_value(MICRO_SECOND_TIMER_GROUP_NUM, MICRO_SECOND_TIMER_NUM, &value);
+        return value;
+    }
 };
 
 #endif // __MICRO_SECOND_TIMER_H
