@@ -29,7 +29,7 @@ public:
     char  getMode();
     int   getFixType();
     // from RMC
-    bool  getValid();
+    bool  getValid(uint32_t max_wait_ms=10);
     uint64_t getValidSince();
     float getLatitude();
     float getLongitude();
@@ -43,31 +43,31 @@ protected:
     size_t      _buffer_size;
     char*       _buffer;
     // from GSV
-    int         _sats_total;
+    volatile int         _sats_total;
     //from GGA
-    int         _sats_tracked;
-    int         _fix_quality;
-    float       _altitude;
-    char        _altitude_units;
+    volatile int         _sats_tracked;
+    volatile int         _fix_quality;
+    volatile float       _altitude;
+    volatile char        _altitude_units;
     // from GSA
-    char        _mode;
-    int         _fix_type;
+    volatile char        _mode;
+    volatile int         _fix_type;
     // from RMC
-    bool        _valid;
-    float       _latitude;
-    float       _longitude;
+    volatile bool        _valid;
+    volatile float       _latitude;
+    volatile float       _longitude;
     char        _psti[81];
     struct timespec _rmc_time;
-    uint64_t    _last_rmc;
-    uint64_t    _valid_since;
+    volatile uint64_t    _last_rmc;
+    volatile uint64_t    _valid_since;
 
     // from ZDA if present
     struct timespec _zda_time;
 
 private:
+    SemaphoreHandle_t _lock;
     QueueHandle_t _event_queue;
     TaskHandle_t  _task;
-    intr_handle_t _timer_int;
 
     void process(char* sentence);
     void task();

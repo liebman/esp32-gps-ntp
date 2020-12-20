@@ -33,6 +33,7 @@ GPS::GPS(MicroSecondTimer& timer, uart_port_t uart_id, size_t buffer_size)
   _uart_id(uart_id),
   _buffer_size(buffer_size)
 {
+    _lock = xSemaphoreCreateMutex();
 }
 
 bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
@@ -162,23 +163,33 @@ int GPS::getFixType()
 }
 
 // from RMC
-bool GPS::getValid()
+bool GPS::getValid(uint32_t max_wait_ms)
 {
-    uint64_t now = _timer.getValue64();
-    uint64_t age = now - _last_rmc;
-    if (_valid && age > 1500000) // its bad if older than 1.5 seconds
+    bool ret = false;
+    if (xSemaphoreTake(_lock, pdMS_TO_TICKS(max_wait_ms)) == pdTRUE)
     {
-        ESP_LOGE(TAG, "::getValid returning false record too old %lluus  (now=%llu last=%llu)", age, now, _last_rmc);
-        _valid = false;
-        return false;
+        uint64_t now = _timer.getValue64();
+        uint64_t age = now - _last_rmc;
+        if (_valid && age > 1500000) // its bad if older than 1.5 seconds
+        {
+            ESP_LOGE(TAG, "::getValid returning false record too old %lluus  (now=%llu last=%llu)", age, now, _last_rmc);
+            _valid = false;
+            xSemaphoreGive(_lock);
+            return false;
+        }
+        // return valid only if it has been valid for over a minute
+        age = now - _valid_since;
+        if (age > 60000000)
+        {
+            ret = _valid;
+        }
+        xSemaphoreGive(_lock);
     }
-    // return false for the first minute after its valid
-    age = now - _valid_since;
-    if (_valid && age < 60000000)
+    else
     {
-        return false;
+        ESP_LOGE(TAG, "::getValid failed to take lock, returning false!");
     }
-    return _valid;
+    return ret;
 }
 
 uint64_t GPS::getValidSince()
@@ -215,7 +226,11 @@ void GPS::process(char* sentence)
 {
     minmea_record_t data;
     ESP_LOGV(TAG, "::process  '%s'", sentence);
-
+    if (xSemaphoreTake(_lock, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+        ESP_LOGE(TAG, "::process: failed to take lock, ignoring: '%s'", sentence);
+        return;
+    }
     switch (minmea_sentence_id(sentence, false))
     {
         case MINMEA_SENTENCE_RMC:
@@ -365,6 +380,7 @@ void GPS::process(char* sentence)
             ESP_LOGW(TAG, "::process sentence unknown: '%s'", sentence);
             break;
     }
+    xSemaphoreGive(_lock);
 }
 
 void GPS::task()
