@@ -105,7 +105,7 @@ bool Display::begin()
     lv_indev_drv_register(&indev_drv);
 #endif
     // quite these
-    esp_log_level_set("XPT2046",    ESP_LOG_WARN);
+    //esp_log_level_set("XPT2046",    ESP_LOG_WARN);
     esp_log_level_set("spi_master", ESP_LOG_WARN);
 
     /* Create and start a periodic timer interrupt to call lv_tick_inc */
@@ -191,5 +191,9 @@ void Display::unlock()
 
 uint32_t Display::getIdleTime()
 {
+    if (_disp == nullptr)
+    {
+        return 0;
+    }
     return lv_disp_get_inactive_time(_disp) / 1000; // return in seconds
 }

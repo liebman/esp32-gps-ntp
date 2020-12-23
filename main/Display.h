@@ -19,7 +19,7 @@ private:
     Display();
     SemaphoreHandle_t _lock;
     LVTabView*        _tabview;
-    lv_disp_t*        _disp;
+    lv_disp_t*        _disp = nullptr;
     static void task(void* data);
     static void tickAction(void* data);
 };

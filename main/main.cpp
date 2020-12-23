@@ -268,7 +268,7 @@ void app_main()
         static time_t last_report = 0;
         if (now > last_report+60)
         {
-            ESP_LOGI(TAG, "now valid: %d is_on: %d idle: %u", now_valid, is_on, (uint32_t)now-(uint32_t)last_touch);
+            ESP_LOGI(TAG, "now valid: %d is_on: %d idle: %u (%u)", now_valid, is_on, (uint32_t)now-(uint32_t)last_touch,Display::getDisplay().getIdleTime());
             last_report = now;
         }
 #endif
