@@ -233,8 +233,6 @@ void app_main()
 
     bool was_valid = false;
     bool is_on = true;
-    time_t last_touch = time(nullptr);
-    time_t last_time = last_touch;
 
     while(true)
     {
@@ -263,30 +261,17 @@ void app_main()
             was_valid = now_valid;
         }
 
+#if 0
         time_t now = time(nullptr);
-#if 1
         static time_t last_report = 0;
         if (now > last_report+60)
         {
-            ESP_LOGI(TAG, "now valid: %d is_on: %d idle: %u (%u)", now_valid, is_on, (uint32_t)now-(uint32_t)last_touch,Display::getDisplay().getIdleTime());
+            ESP_LOGI(TAG, "now valid: %d is_on: %d idle: %u", now_valid, is_on, Display::getDisplay().getIdleTime());
             last_report = now;
         }
 #endif
-        // detect time jump when time is set.
-        if (now - last_time > 300)
-        {
-            ESP_LOGI(TAG, "time jump %u seconds, reseting last_touch", (uint32_t)now-(uint32_t)last_time);
-            last_touch = now;
-        }
-        last_time = now;
 
-        if (gpio_get_level(TCH_IRQ_PIN) == 0 && gpio_get_level(TCH_IRQ_PIN) == 0)
-        {
-            //ESP_LOGI(TAG, "tch_irq: %d", gpio_get_level(TCH_IRQ_PIN));
-            last_touch = now;
-        }
-
-        if ((now - last_touch) > 3600) // 1 hr
+        if (Display::getDisplay().getIdleTime() > 3600) // 1 hr
         {
             if (is_on)
             {

@@ -105,7 +105,7 @@ bool Display::begin()
     lv_indev_drv_register(&indev_drv);
 #endif
     // quite these
-    //esp_log_level_set("XPT2046",    ESP_LOG_WARN);
+    esp_log_level_set("XPT2046",    ESP_LOG_WARN);
     esp_log_level_set("spi_master", ESP_LOG_WARN);
 
     /* Create and start a periodic timer interrupt to call lv_tick_inc */

@@ -960,7 +960,11 @@ CONFIG_LV_DISP_LARGE_LIMIT=70
 #
 # Memory manager settings
 #
-CONFIG_LV_MEM_SIZE_BYTES=32
+CONFIG_LV_MEM_CUSTOM=y
+CONFIG_LV_MEM_CUSTOM_INCLUDE="stdlib.h"
+CONFIG_LV_MEM_CUSTOM_ALLOC="malloc"
+CONFIG_LV_MEM_CUSTOM_FREE="free"
+CONFIG_LV_MEMCPY_MEMSET_STD=y
 # end of Memory manager settings
 
 #
@@ -996,6 +1000,7 @@ CONFIG_LV_GPU_DMA2D_CMSIS_INCLUDE=""
 # CONFIG_LV_USE_GPU_NXP_VG_LITE is not set
 CONFIG_LV_USE_FILESYSTEM=y
 CONFIG_LV_USE_USER_DATA=y
+# CONFIG_LV_USE_USER_DATA_FREE is not set
 # CONFIG_LV_USE_PERF_MONITOR is not set
 # CONFIG_LV_USE_API_EXTENSION_V6 is not set
 # CONFIG_LV_USE_API_EXTENSION_V7 is not set
@@ -1010,10 +1015,16 @@ CONFIG_LV_IMG_CACHE_DEF_SIZE=1
 # end of Image decoder and cache
 
 #
-# Compiler settings
+# Compiler Settings
 #
 # CONFIG_LV_BIG_ENDIAN_SYSTEM is not set
-# end of Compiler settings
+# end of Compiler Settings
+
+#
+# HAL Settings
+#
+# CONFIG_LV_TICK_CUSTOM is not set
+# end of HAL Settings
 
 #
 # Log Settings
@@ -1324,6 +1335,7 @@ CONFIG_LV_TOUCH_Y_MAX=1900
 # CONFIG_LV_TOUCH_XY_SWAP is not set
 # CONFIG_LV_TOUCH_INVERT_X is not set
 # CONFIG_LV_TOUCH_INVERT_Y is not set
+CONFIG_LV_TOUCH_CHECK=y
 # end of Touchpanel Configuration (XPT2046)
 # end of LVGL Touch controller
 
