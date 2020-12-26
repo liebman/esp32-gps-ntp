@@ -5,8 +5,8 @@ $Descr A 11000 8500
 encoding utf-8
 Sheet 1 1
 Title "esp-gps-ntp"
-Date "2020-11-28"
-Rev "1.0"
+Date "2020-12-26"
+Rev "1.0a"
 Comp ""
 Comment1 ""
 Comment2 ""
