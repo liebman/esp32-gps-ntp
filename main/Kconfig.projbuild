@@ -1,5 +1,17 @@
 menu "GPS NTP Server"
 
+    config GPSNTP_PPS_PIN
+        int "GPS PPS GPIO number"
+        default 35
+        help
+            GPIO that has GPS PPS signal connected
+
+    config GPSNTP_SQW_PIN
+        int "RTC SQW GPIO number"
+        default 26
+        help
+            GPIO that has RTC SQW signal connected
+
     config GPSNTP_MISS_TIME
         int "Max PPS pulse interval"
         default 1000050
@@ -17,28 +29,6 @@ menu "GPS NTP Server"
         default 500
         help
             Maximum drift for RTC pulse
-
-    choice GPSNTP_MICROSECOND_TIMER_GROUP
-        prompt "Select timergroup for microsecond timer"
-        default GPSNTP_MICROSECOND_TIMER_GROUP_0
-
-        config GPSNTP_MICROSECOND_TIMER_GROUP_0
-            bool "Timer Group 0"
-
-        config GPSNTP_MICROSECOND_TIMER_GROUP_1
-            bool "Timer Group 1"
-    endchoice
-
-    choice GPSNTP_MICROSECOND_TIMER
-        prompt "Select timer for microsecond timer"
-        default GPSNTP_MICROSECOND_TIMER_0
-
-        config GPSNTP_MICROSECOND_TIMER_0
-            bool "Timer 0"
-
-        config GPSNTP_MICROSECOND_TIMER_1
-            bool "Timer 1"
-    endchoice
 
     choice GPSNTP_GPS_TYPE
 

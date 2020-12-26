@@ -68,13 +68,8 @@ extern "C" {
 
 #define GPS_RX_PIN (GPIO_NUM_33)
 #define GPS_TX_PIN (GPIO_NUM_32)
-#ifdef NEW_BOARD
-#define GPS_PPS_PIN (GPIO_NUM_35)
-#define RTC_PPS_PIN (GPIO_NUM_26)
-#else
-#define GPS_PPS_PIN (GPIO_NUM_26)
-#define RTC_PPS_PIN (GPIO_NUM_27)
-#endif
+#define GPS_PPS_PIN ((gpio_num_t)CONFIG_GPSNTP_PPS_PIN)
+#define RTC_PPS_PIN ((gpio_num_t)CONFIG_GPSNTP_SQW_PIN)
 #define SDA_PIN (GPIO_NUM_16)
 #define SCL_PIN (GPIO_NUM_17)
 #define TFT_LED_PIN (GPIO_NUM_4)

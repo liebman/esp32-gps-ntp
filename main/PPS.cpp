@@ -93,17 +93,6 @@ bool PPS::begin(gpio_num_t pps_pin, bool expect_negedge)
 #endif
         ESP_LOGI(TAG, "::begin configuring PPS pin %d", _pin);
         gpio_set_direction(_pin, GPIO_MODE_INPUT);
-        // TODO: fix this!
-#ifdef NEW_BOARD
-        ESP_LOGW(TAG, "::begin TODO: fix this: 'if (_pin == 26)' !!!");
-        if (_pin == 26)
-#else
-        ESP_LOGW(TAG, "::begin TODO: fix this: 'if (_pin == 27)' !!!");
-        if (_pin == 27)
-#endif
-        {
-            gpio_set_pull_mode(_pin, GPIO_PULLUP_ONLY);
-        }
 #ifdef USE_INTERRUPT_SERVICE
         //hook isr handler for specific gpio pin
         gpio_isr_handler_add(_pin, pps, this);
