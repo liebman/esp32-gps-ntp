@@ -16,4 +16,4 @@ The display I'm using is [here](https://www.amazon.com/gp/product/B073R7BH1B)
 
 ## Schematic
 
-![Schematic](images/ESPNTPServer.png)
+![Schematic](images/esp-gps-ntp.jpg)
