@@ -28,10 +28,10 @@ jobs:
           submodules: recursive
 
       - name: install platformio
-        run: pip install platformio
+        run: pip3 install platformio
 
       - name: update platformio
-        run: ~/.platformio/penv/bin/platformio update
+        run: platformio update
 
       - name: compile project
-        run: ~/.platformio/penv/bin/platformio run
+        run: platformio run
