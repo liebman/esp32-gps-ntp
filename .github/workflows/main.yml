@@ -31,7 +31,7 @@ jobs:
         run: pip install platformio
 
       - name: update platformio
-        run: platformio update
+        run: ~/.platformio/penv/bin/platformio update
 
       - name: compile project
-        run: platformio run
+        run: ~/.platformio/penv/bin/platformio run
