@@ -31,15 +31,18 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 
-static const char* TAG = "PageSync";
+static const char* TAG = "PageNTP";
 
 enum Row
 {
     PPS_TIME,
     REQUESTS,
     RESPONSES,
+    UPTIME,
     _NUM_ROWS
 };
+
+static const char* labels[_NUM_ROWS] = {"Time:", "Req:", "Resp:", "Uptime:"};
 
 PageNTP::PageNTP(NTP& ntp, SyncManager& syncman)
 : _ntp(ntp),
@@ -70,17 +73,12 @@ PageNTP::PageNTP(NTP& ntp, SyncManager& syncman)
         _table->setColumnWidth(1, 160);
         _table->setRowCount(Row::_NUM_ROWS);
 
-        _table->setCellAlign(Row::PPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::REQUESTS, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::RESPONSES, 0, LV_LABEL_ALIGN_RIGHT);
-
-        _table->setCellValue(Row::PPS_TIME, 0, "Time:");
-        _table->setCellValue(Row::REQUESTS, 0, "Req:");
-        _table->setCellValue(Row::RESPONSES, 0, "Resp:");
-
-        _table->setCellAlign(Row::PPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::REQUESTS, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::RESPONSES, 1, LV_LABEL_ALIGN_LEFT);
+        for (int row = 0; row < Row::_NUM_ROWS; ++row)
+        {
+            _table->setCellAlign(row, 0, LV_LABEL_ALIGN_RIGHT);
+            _table->setCellValue(row, 0, labels[row]);
+            _table->setCellAlign(row, 1, LV_LABEL_ALIGN_LEFT);
+        }
 
         ESP_LOGI(TAG, "creating task");
         lv_task_create(task, 100, LV_TASK_PRIO_LOW, this);
@@ -113,6 +111,16 @@ static void fmtTime(const char* label, char* result, const size_t size, const ti
     }
 }
 
+static void duration(char* buf, size_t size, uint32_t seconds)
+{
+    uint32_t days     = seconds / 86400;
+    seconds          -= days * 86400;
+    uint32_t hours    = seconds /3600;
+    seconds          -= hours * 3600;
+    uint32_t minutes  = seconds / 60;
+    seconds          -= minutes * 60;
+    snprintf(buf, size-1, "%dd %02dh %02dm %02ds", days, hours, minutes, seconds);
+}
 void PageNTP::update()
 {
     static char buf[128];
@@ -121,10 +129,14 @@ void PageNTP::update()
     fmtTime("", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
     _table->setCellValue(Row::PPS_TIME, 1, buf);
 
-
     snprintf(buf, sizeof(buf)-1, "%u", _ntp.getRequests());
     _table->setCellValue(Row::REQUESTS, 1, buf);
 
     snprintf(buf, sizeof(buf)-1, "%u", _ntp.getResponses());
     _table->setCellValue(Row::RESPONSES, 1, buf);
+
+    uint32_t seconds = esp_timer_get_time() / 1000000; // uptime in seconds
+    duration(buf, sizeof(buf), seconds);
+    _table->setCellValue(Row::UPTIME, 1, buf);
+
 }

@@ -53,7 +53,7 @@ public:
     static const uint32_t OFFSET_DATA_SIZE = 10;
 
 private:
-    float           _Kp = 3.2;
+    float           _Kp = 1.6;
     float           _Ki = 0.1;
     float           _Kd = 0.8;
 
@@ -65,14 +65,14 @@ private:
     TaskHandle_t    _task;
 
     //
-    // target is set slightly away from 0 as the ISRs can't run exactly at the same time.
-    // If they triggered exactly in sync one would still be processed after the other with
-    // a delta of less than 10us usually. This would cause a lot of jitter.
+    // Target is an offset in microseconds that we try to keep the RTC PPS from teh GPS PPS
     //
-    float           _target             = 10.0;
+    float           _target             = 0.0;
     //
-    // We can optionbally bias the output to compensate for natural drift from the RTC. This
+    // We can optionally bias the output to compensate for natural drift from the RTC. This
     // makes initial syncing faster as the integral does not need to build up to compensate.
+    // A good value for that can be found by setting bias to zero, letting Sync match the target.
+    // than take the synced integral value and multiply it by Ki.
     //
     float           _bias               = 0.0;
 

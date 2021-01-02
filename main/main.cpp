@@ -215,13 +215,15 @@ static void init(void* data)
     // start the sync manager
     syncman.begin();
 
-    new PagePPS(gps_pps, rtc_pps);
     new PageNTP(ntp, syncman);
+    new PagePPS(gps_pps, rtc_pps);
     new PageSync(syncman);
     new PageDelta(syncman);
     new PageGPS(gps);
     new PageSats(gps);
+#if 0
     new PageTask();
+#endif
     new PageConfig(config, apply_config);
     new PageAbout();
 
