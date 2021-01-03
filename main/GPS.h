@@ -39,7 +39,7 @@ class GPS
 {
     
 public:
-    GPS(MicroSecondTimer& timer, uart_port_t uart_id = UART_NUM_1, size_t buffer_size = 2048);
+    explicit GPS(MicroSecondTimer& timer, uart_port_t uart_id = UART_NUM_1, size_t buffer_size = 2048);
     bool  begin(gpio_num_t tx_pin, gpio_num_t rx_pin);
 
     // from GSV
@@ -62,36 +62,36 @@ public:
     time_t getZDATime();
 
 protected:
-    MicroSecondTimer& _timer;
-    uart_port_t _uart_id;
-    size_t      _buffer_size;
-    char*       _buffer;
+    MicroSecondTimer&   _timer;
+    uart_port_t         _uart_id;
+    size_t              _buffer_size;
+    char*               _buffer = nullptr;
     // from GSV
-    volatile int         _sats_total;
+    volatile int        _sats_total = 0;
     //from GGA
-    volatile int         _sats_tracked;
-    volatile int         _fix_quality;
-    volatile float       _altitude;
-    volatile char        _altitude_units;
+    volatile int        _sats_tracked = 0;
+    volatile int        _fix_quality = 0;
+    volatile float      _altitude = 0;
+    volatile char       _altitude_units = 0;
     // from GSA
-    volatile char        _mode;
-    volatile int         _fix_type;
+    volatile char       _mode = 0;
+    volatile int        _fix_type = 0;
     // from RMC
-    volatile bool        _valid;
-    volatile float       _latitude;
-    volatile float       _longitude;
-    char        _psti[81];
-    struct timespec _rmc_time;
-    volatile uint64_t    _last_rmc;
-    volatile uint64_t    _valid_since;
+    volatile bool       _valid = false;
+    volatile float      _latitude = 0.0;
+    volatile float      _longitude = 0.0;
+    char                _psti[81] = {0};
+    struct timespec     _rmc_time = {0,0};
+    volatile uint64_t   _last_rmc = 0;
+    volatile uint64_t   _valid_since = 0;
 
     // from ZDA if present
-    struct timespec _zda_time;
+    struct timespec     _zda_time = {0,0};;
 
 private:
-    SemaphoreHandle_t _lock;
-    QueueHandle_t _event_queue;
-    TaskHandle_t  _task;
+    SemaphoreHandle_t   _lock;
+    QueueHandle_t       _event_queue;
+    TaskHandle_t        _task;
 
     void process(char* sentence);
     void task();

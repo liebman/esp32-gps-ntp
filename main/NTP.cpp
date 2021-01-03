@@ -170,7 +170,7 @@ void NTP::getNTPTime(NTPTime* time)
 
 void NTP::task(void* data)
 {
-    NTP* ntp = (NTP*)data;
+    NTP* ntp = static_cast<NTP*>(data);
     ESP_LOGI(TAG, "::task started with priority %d core %d", uxTaskPriorityGet(nullptr), xPortGetCoreID());
     int addr_family = AF_INET;
     int ip_protocol = IPPROTO_IP;
@@ -199,6 +199,7 @@ void NTP::task(void* data)
         int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
         if (err < 0) {
             ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+            break;
         }
         ESP_LOGI(TAG, "Socket bound, port %d", NTP_PORT);
 
@@ -270,7 +271,7 @@ void NTP::task(void* data)
             packet.xmit_time.seconds  = htonl(packet.xmit_time.seconds);
             packet.xmit_time.fraction = htonl(packet.xmit_time.fraction);
 
-            int err = sendto(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+            err = sendto(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
             if (err < 0)
             {
                 ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
@@ -279,11 +280,8 @@ void NTP::task(void* data)
             ntp->_rsp_count++;
         }
 
-        if (sock != -1)
-        {
-            ESP_LOGE(TAG, "Shutting down socket and restarting...");
-            shutdown(sock, 0);
-            close(sock);
-        }
+        ESP_LOGE(TAG, "Shutting down socket and restarting...");
+        shutdown(sock, 0);
+        close(sock);
     }
 }

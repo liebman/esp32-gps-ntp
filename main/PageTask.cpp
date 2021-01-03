@@ -74,7 +74,7 @@ PageTask::~PageTask()
 
 void PageTask::task(lv_task_t *task)
 {
-    PageTask* p = (PageTask*)task->user_data;
+    PageTask* p = static_cast<PageTask*>(task->user_data);
     p->update();
 }
 

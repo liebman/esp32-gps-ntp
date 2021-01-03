@@ -28,7 +28,7 @@
 
 static const char* TAG = "WithDisplayLock";
 
-WithDisplayLock::WithDisplayLock(std::function<void()> got_lock, std::function<void()> got_no_lock)
+WithDisplayLock::WithDisplayLock(const std::function<void()>& got_lock, const std::function<void()>& got_no_lock)
 {
     _locked = Display::getDisplay().lock(1000);
     if (_locked)

@@ -68,7 +68,7 @@ PageAbout::~PageAbout()
 
 void PageAbout::task(lv_task_t *task)
 {
-    PageAbout* p = (PageAbout*)task->user_data;
+    PageAbout* p = static_cast<PageAbout*>(task->user_data);
     p->update();
 }
 
@@ -89,6 +89,6 @@ void PageAbout::update()
     seconds          -= hours * 3600;
     uint32_t minutes  = seconds / 60;
     seconds          -= minutes * 60;
-    snprintf(buf, sizeof(buf)-1, "Uptime: %dd %02dh %02dm %02ds", days, hours, minutes, seconds);
+    snprintf(buf, sizeof(buf)-1, "Uptime: %ud %02uh %02um %02us", days, hours, minutes, seconds);
     _uptime->setText(buf);
 }

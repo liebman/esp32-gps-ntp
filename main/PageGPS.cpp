@@ -71,7 +71,7 @@ PageGPS::~PageGPS()
 
 void PageGPS::task(lv_task_t *task)
 {
-    PageGPS* p = (PageGPS*)task->user_data;
+    PageGPS* p = static_cast<PageGPS*>(task->user_data);
     p->update();
 }
 

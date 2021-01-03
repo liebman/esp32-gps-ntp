@@ -31,6 +31,8 @@ class PageAbout {
 public:
     PageAbout();
     ~PageAbout();
+    PageAbout(PageAbout&) = delete;
+    PageAbout& operator=(PageAbout&) = delete;
 private:
     void update();
     static void task(lv_task_t* task);

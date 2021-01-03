@@ -35,6 +35,10 @@ class PageTask {
 public:
     PageTask();
     ~PageTask();
+
+    PageTask(PageTask&) = delete;
+    PageTask& operator=(PageTask&) = delete;
+
 private:
     void update();
     static void task(lv_task_t* task);

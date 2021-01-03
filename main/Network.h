@@ -42,8 +42,8 @@ public:
 
 private:
     Network();
-    esp_ip4_addr_t _ip;
-    char           _ip_str[16];
+    esp_ip4_addr_t _ip  = {0};
+    char           _ip_str[16] = {0};
     static void eventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 };
 

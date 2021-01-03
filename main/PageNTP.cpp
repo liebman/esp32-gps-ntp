@@ -91,7 +91,7 @@ PageNTP::~PageNTP()
 
 void PageNTP::task(lv_task_t *task)
 {
-    PageNTP* p = (PageNTP*)task->user_data;
+    PageNTP* p = static_cast<PageNTP*>(task->user_data);
     p->update();
 }
 
@@ -119,8 +119,9 @@ static void duration(char* buf, size_t size, uint32_t seconds)
     seconds          -= hours * 3600;
     uint32_t minutes  = seconds / 60;
     seconds          -= minutes * 60;
-    snprintf(buf, size-1, "%dd %02dh %02dm %02ds", days, hours, minutes, seconds);
+    snprintf(buf, size-1, "%ud %02uh %02um %02us", days, hours, minutes, seconds);
 }
+
 void PageNTP::update()
 {
     static char buf[128];

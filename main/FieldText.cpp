@@ -33,7 +33,7 @@ LVKeyboard* FieldText::_keyboard;
 std::function<void(void)> FieldText::_kb_submit_action;
 std::function<void(void)> FieldText::_kb_cancel_action;
 
-FieldText::FieldText(LVBase* parent, const char* label, uint16_t length, std::function<void(void)> submit, std::function<void(void)> cancel)
+FieldText::FieldText(LVBase* parent, const char* label, uint16_t length, const std::function<void(void)> submit, const std::function<void(void)> cancel)
 {
     if (_container_style == nullptr)
     {

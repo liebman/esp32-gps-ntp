@@ -99,7 +99,7 @@ PageDelta::~PageDelta()
 
 void PageDelta::task(lv_task_t *task)
 {
-    PageDelta* p = (PageDelta*)task->user_data;
+    PageDelta* p = static_cast<PageDelta*>(task->user_data);
     p->update();
 }
 

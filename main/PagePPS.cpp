@@ -75,7 +75,7 @@ PagePPS::~PagePPS()
 
 void PagePPS::task(lv_task_t *task)
 {
-    PagePPS* p = (PagePPS*)task->user_data;
+    PagePPS* p = static_cast<PagePPS*>(task->user_data);
     p->update();
 }
 

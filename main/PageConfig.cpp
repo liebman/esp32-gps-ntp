@@ -33,11 +33,11 @@ static const char* TAG = "PageConfig";
 
 static void configTask(lv_task_t* task)
 {
-    PageConfig* p = (PageConfig*)task->user_data;
+    PageConfig* p = static_cast<PageConfig*>(task->user_data);
     p->process();
 }
 
-PageConfig::PageConfig(Config& config, ApplyCB apply_cb)
+PageConfig::PageConfig(Config& config, const ApplyCB& apply_cb)
 : _config(config),
   _apply_cb(apply_cb)
 {

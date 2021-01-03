@@ -41,8 +41,8 @@ public:
     uint32_t getIdleTime();
 private:
     Display();
-    SemaphoreHandle_t _lock;
-    LVTabView*        _tabview;
+    SemaphoreHandle_t _lock = nullptr;
+    LVTabView*        _tabview = nullptr;
     lv_disp_t*        _disp = nullptr;
     static void task(void* data);
     static void tickAction(void* data);

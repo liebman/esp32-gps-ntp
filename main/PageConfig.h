@@ -38,27 +38,30 @@ class PageConfig
 {
 public:
     using ApplyCB = std::function<void()>;
-    PageConfig(Config& config, ApplyCB apply_cb = nullptr);
+    explicit PageConfig(Config& config, const ApplyCB& apply_cb = nullptr);
     ~PageConfig();
     void process();
 
+    PageConfig(PageConfig&) = delete;
+    PageConfig& operator=(PageConfig&) = delete;
+
 private:
-    Config&    _config;
-    ApplyCB    _apply_cb;
+    Config&         _config;
+    const ApplyCB&  _apply_cb;
 
-    LVStyle    _contrainer_style;
-    LVStyle    _button_style;
+    LVStyle         _contrainer_style;
+    LVStyle         _button_style;
 
-    LVPage*    _page;
-    FieldText* _ssid;
-    FieldText* _password;
-    FieldText* _bias;
-    FieldText* _target;
-    LVButton*  _apply;
-    LVButton*  _save;
-    LVButton*  _load;
+    LVPage*         _page;
+    FieldText*      _ssid;
+    FieldText*      _password;
+    FieldText*      _bias;
+    FieldText*      _target;
+    LVButton*       _apply;
+    LVButton*       _save;
+    LVButton*       _load;
 
-    LVButton*   makeButton(LVBase* parent, const char* label, LVBase::LVEventCB cb);
-    LVSpinBox*  makeSpinBoxField(LVBase* parent, const char* label, int32_t initial_value, LVBase::LVEventCB cb);
+    LVButton*       makeButton(LVBase* parent, const char* label, LVBase::LVEventCB cb);
+    LVSpinBox*      makeSpinBoxField(LVBase* parent, const char* label, int32_t initial_value, LVBase::LVEventCB cb);
 };
 #endif // _PAGE_CONFIG_H

@@ -107,7 +107,7 @@ PageSync::~PageSync()
 
 void PageSync::task(lv_task_t *task)
 {
-    PageSync* p = (PageSync*)task->user_data;
+    PageSync* p = static_cast<PageSync*>(task->user_data);
     p->update();
 }
 

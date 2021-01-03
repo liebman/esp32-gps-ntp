@@ -28,7 +28,7 @@
 
 class WithDisplayLock {
 public:
-    WithDisplayLock(std::function<void()> got_lock, std::function<void()> got_no_lock = nullptr);
+    explicit WithDisplayLock(const std::function<void()>& got_lock, const std::function<void()>& got_no_lock = nullptr);
     WithDisplayLock();
     ~WithDisplayLock();
 

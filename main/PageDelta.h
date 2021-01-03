@@ -32,8 +32,12 @@
 
 class PageDelta {
 public:
-    PageDelta(SyncManager& syncman);
+    explicit PageDelta(SyncManager& syncman);
     ~PageDelta();
+
+    PageDelta(PageDelta&) = delete;
+    PageDelta& operator=(PageDelta&) = delete;
+
 private:
     void update();
     static void task(lv_task_t* task);

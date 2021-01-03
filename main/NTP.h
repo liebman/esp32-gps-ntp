@@ -35,7 +35,7 @@ typedef struct ntp_time
 class NTP
 {
 public:
-    NTP(PPS& pps);
+    explicit NTP(PPS& pps);
     ~NTP();
     void begin();
     uint32_t getRequests() { return _req_count; }

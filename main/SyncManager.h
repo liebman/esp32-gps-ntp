@@ -53,11 +53,11 @@ public:
     static const uint32_t OFFSET_DATA_SIZE = 10;
 
 private:
-    float           _Kp = 1.6;
+    float           _Kp = 1.2;
     float           _Ki = 0.1;
     float           _Kd = 0.8;
 
-    int32_t         _offset_data[OFFSET_DATA_SIZE];
+    int32_t         _offset_data[OFFSET_DATA_SIZE] = {0};
     GPS&            _gps;
     DS3231&         _rtc;
     PPS&            _gpspps;

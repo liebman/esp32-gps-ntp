@@ -36,6 +36,10 @@ class PageNTP {
 public:
     PageNTP(NTP& ntp, SyncManager& syncman);
     ~PageNTP();
+
+    PageNTP(PageNTP&) = delete;
+    PageNTP& operator=(PageNTP&) = delete;
+
 private:
     void update();
     static void task(lv_task_t* task);

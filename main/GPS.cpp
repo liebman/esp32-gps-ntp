@@ -55,9 +55,9 @@ typedef union {
 GPS::GPS(MicroSecondTimer& timer, uart_port_t uart_id, size_t buffer_size)
 : _timer(timer),
   _uart_id(uart_id),
-  _buffer_size(buffer_size)
+  _buffer_size(buffer_size),
+  _lock(xSemaphoreCreateMutex())
 {
-    _lock = xSemaphoreCreateMutex();
 }
 
 bool GPS::begin(gpio_num_t tx_pin, gpio_num_t rx_pin)
@@ -503,6 +503,6 @@ void GPS::task()
 void GPS::task(void* data)
 {
     ESP_LOGI(TAG, "::task Starting with priority %d core %d", uxTaskPriorityGet(nullptr), xPortGetCoreID());
-    GPS* gps = (GPS*)data;
+    GPS* gps = static_cast<GPS*>(data);
     gps->task();
 }

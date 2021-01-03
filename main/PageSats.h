@@ -32,8 +32,12 @@
 
 class PageSats {
 public:
-    PageSats(GPS& gps);
+    explicit PageSats(GPS& gps);
     ~PageSats();
+
+    PageSats(PageSats&) = delete;
+    PageSats& operator=(PageSats&) = delete;
+
 private:
     void update();
     static void task(lv_task_t* task);

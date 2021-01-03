@@ -34,6 +34,10 @@ class PagePPS {
 public:
     PagePPS(PPS& gps_pps, PPS& rtc_pps);
     ~PagePPS();
+
+    PagePPS(PagePPS&) = delete;
+    PagePPS& operator=(PagePPS&) = delete;
+
 private:
     void update();
     static void task(lv_task_t* task);

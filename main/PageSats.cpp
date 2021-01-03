@@ -83,7 +83,7 @@ PageSats::~PageSats()
 
 void PageSats::task(lv_task_t *task)
 {
-    PageSats* p = (PageSats*)task->user_data;
+    PageSats* p = static_cast<PageSats*>(task->user_data);
     p->update();
 }
 

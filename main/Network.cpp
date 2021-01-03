@@ -110,7 +110,7 @@ uint32_t Network::waitFor(Status status, TickType_t wait)
 
 void Network::eventHandler(void* data, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
-    Network* net = (Network*)data;
+    Network* net = static_cast<Network*>(data);
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {

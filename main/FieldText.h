@@ -34,6 +34,8 @@
 class FieldText {
 public:
     FieldText(LVBase* parent, const char* label, uint16_t length, std::function<void(void)> submit, std::function<void(void)> cancel);
+    FieldText(FieldText&) = delete;
+    FieldText& operator=(FieldText&) = delete;
     ~FieldText();
 
     void setText(const char* text);

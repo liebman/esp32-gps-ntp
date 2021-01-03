@@ -33,8 +33,12 @@
 
 class PageGPS {
 public:
-    PageGPS(GPS& gps);
+    explicit PageGPS(GPS& gps);
     ~PageGPS();
+
+    PageGPS(PageGPS&) = delete;
+    PageGPS& operator=(PageGPS&) = delete;
+
 private:
     void update();
     static void task(lv_task_t* task);

@@ -346,7 +346,7 @@ void SyncManager::process()
 void SyncManager::task(void* data)
 {
     ESP_LOGI(TAG, "::task - starting!");
-    SyncManager* syncman = (SyncManager*)data;
+    SyncManager* syncman = static_cast<SyncManager*>(data);
     //we dont start for a few seconds so that times can be set and initial seconds and offsets are computed
 
     vTaskDelay(pdMS_TO_TICKS(5000));

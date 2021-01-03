@@ -33,8 +33,12 @@
 
 class PageSync {
 public:
-    PageSync(SyncManager& syncman);
+    explicit PageSync(SyncManager& syncman);
     ~PageSync();
+
+    PageSync(PageSync&) = delete;
+    PageSync& operator=(PageSync&) = delete;
+
 private:
     void update();
     static void task(lv_task_t* task);
