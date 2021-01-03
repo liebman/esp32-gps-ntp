@@ -6,7 +6,7 @@ This is an [esp-idf](https://docs.espressif.com/projects/esp-idf/en/latest/esp32
 
 ## Some details
 
-Synching the DS3231 to the GPS is done with a small high level (level 5) interrupt handler in assembly.  This generates a timestamp and offset in microseconds tracking the active edges of the GPS PPS and RTC SQW signals.  This data is then fed in to a PID algorithm that will generate an offset value used to speed up and slow down the DS3231 RTC.
+Synching the DS3231 to the GPS is done with a small high level (level 5) interrupt handler in assembly.  This generates a timestamp and offset in microseconds tracking the active edges of the GPS PPS and RTC SQW signals.  This data is then fed in to a PID algorithm that will generate an offset value used to speed up and slow down the DS3231 RTC.  This keeps the DS3231 synced with the GPS to within a couple of microseconds.  As a side benifit it also tunes the DS3231's ocilator to reduce drift when GPS is unavailable.
 
 - [main](main) Contains the code
 - [kicad/esp-gps-ntp](kicad/esp-gps-ntp) contains the schematic and board designs in KiCad.
