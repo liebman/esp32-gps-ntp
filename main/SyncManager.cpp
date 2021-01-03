@@ -284,11 +284,11 @@ void SyncManager::manageDrift(float offset)
 
         }
 
-        if (_rtc.getAgeOffset() != output)
+        if (_rtc.getAgeOffset() != (int8_t)output)
         {
-            _rtc.setAgeOffset(output);
-            ESP_LOGI(TAG, "::manageDrift: target=%0.1f offset=%0.1f/%d/%d error=%0.1f i=%0.1f d=%0.1f bias=%0.1f out=%0.1f",
-                    _target, offset, min_offset, max_offset, error, _integral, derivative, _bias, output);
+            _rtc.setAgeOffset((int8_t)output);
+            ESP_LOGI(TAG, "::manageDrift: target=%0.1f offset=%0.1f/%d/%d error=%0.1f i=%0.1f d=%0.1f bias=%0.1f out=%d",
+                    _target, offset, min_offset, max_offset, error, _integral, derivative, _bias, (int8_t)output);
         }
 
         _drift_start_time = now;

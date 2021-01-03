@@ -53,7 +53,7 @@ public:
     static const uint32_t OFFSET_DATA_SIZE = 10;
 
 private:
-    float           _Kp = 1.2;
+    float           _Kp = 3.2;
     float           _Ki = 0.1;
     float           _Kd = 0.8;
 
