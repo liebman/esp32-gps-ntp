@@ -168,6 +168,20 @@ void SyncManager::setTarget(float target)
     resetOffset();
 }
 
+bool SyncManager::isValid()
+{
+    return _gps.getValid();
+}
+
+uint32_t SyncManager::getValidDuration()
+{
+    return _gps.getValidDuration();
+}
+
+uint32_t SyncManager::getValidCount()
+{
+    return _gps.getValidCount();
+}
 
 /**
  * return the average offset.  0 is returnerd if the offset data is not full.

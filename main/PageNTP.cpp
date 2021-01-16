@@ -35,14 +35,15 @@ static const char* TAG = "PageNTP";
 
 enum Row
 {
-    PPS_TIME,
     REQUESTS,
     RESPONSES,
     UPTIME,
+    VALIDTIME,
+    VALIDCOUNT,
     _NUM_ROWS
 };
 
-static const char* labels[_NUM_ROWS] = {"Time:", "Req:", "Resp:", "Uptime:"};
+static const char* labels[_NUM_ROWS] = {"Req:", "Resp:", "Uptime:", "Valid:", "ValidCount:"};
 
 PageNTP::PageNTP(NTP& ntp, SyncManager& syncman)
 : _ntp(ntp),
@@ -65,11 +66,14 @@ PageNTP::PageNTP(NTP& ntp, SyncManager& syncman)
         cont->align(nullptr, LV_ALIGN_CENTER, 0, 0);
         cont->setDragParent(true);
 
+        _datetime = new LVLabel(cont);
+        _datetime->setStyleTextFont(LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &lv_font_montserrat_28);
+
         _table = new LVTable(cont);
         _table->addStyle(LV_TABLE_PART_BG, &_container_style);
         _table->addStyle(LV_TABLE_PART_CELL1, &_container_style);
         _table->setColumnCount(2);
-        _table->setColumnWidth(0, 80);
+        _table->setColumnWidth(0, 85);
         _table->setColumnWidth(1, 160);
         _table->setRowCount(Row::_NUM_ROWS);
 
@@ -100,7 +104,7 @@ static void fmtTime(const char* label, char* result, const size_t size, const ti
     char buf[256];
     struct tm tm;
     gmtime_r(&time, &tm);
-    strftime(buf, sizeof(buf)-1, "%Y:%m:%d %H:%M:%S", &tm);
+    strftime(buf, sizeof(buf)-1, "%Y/%m/%d %H:%M:%S", &tm);
     if (microseconds < 1000000)
     {
         snprintf(result, size, "%s%s.%02u", label, buf, microseconds/10000);
@@ -127,8 +131,9 @@ void PageNTP::update()
     static char buf[128];
     struct timeval tv;
     _syncman.getRTCPPSTime(&tv);
-    fmtTime("", buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
-    _table->setCellValue(Row::PPS_TIME, 1, buf);
+    fmtTime(" ", _time_buf, sizeof(buf)-1, tv.tv_sec, tv.tv_usec);
+    _datetime->setText(_time_buf);
+    _datetime->setStyleTextColor(LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, _syncman.isValid() ? LV_COLOR_LIME : LV_COLOR_RED);
 
     snprintf(buf, sizeof(buf)-1, "%u", _ntp.getRequests());
     _table->setCellValue(Row::REQUESTS, 1, buf);
@@ -140,4 +145,9 @@ void PageNTP::update()
     duration(buf, sizeof(buf), seconds);
     _table->setCellValue(Row::UPTIME, 1, buf);
 
+    duration(buf, sizeof(buf)-1, _syncman.getValidDuration());
+    _table->setCellValue(Row::VALIDTIME, 1, buf);
+
+    snprintf(buf, sizeof(buf)-1, "%u", _syncman.getValidCount());
+    _table->setCellValue(Row::VALIDCOUNT, 1, buf);
 }

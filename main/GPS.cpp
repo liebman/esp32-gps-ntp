@@ -216,9 +216,14 @@ bool GPS::getValid(uint32_t max_wait_ms)
     return ret;
 }
 
-uint64_t GPS::getValidSince()
+uint32_t GPS::getValidDuration()
 {
-    return _valid_since;
+    return _valid ? (_timer.getValue64() - _valid_since) / 1000000 : 0;
+}
+
+uint32_t GPS::getValidCount()
+{
+    return _valid_count;
 }
 
 float GPS::getLatitude()
@@ -277,6 +282,7 @@ void GPS::process(char* sentence)
             if (_valid && !was_valid)
             {
                 _valid_since = _last_rmc;
+                _valid_count += 1;
             }
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",

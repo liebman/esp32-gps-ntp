@@ -46,8 +46,10 @@ private:
     NTP&         _ntp;
     SyncManager& _syncman;
     LVPage*      _page;
+    LVLabel*     _datetime;
     LVTable*     _table;
     LVStyle      _container_style;
+    char         _time_buf[32] = {0};
 };
 
 #endif // _PAGE_NTP_H_

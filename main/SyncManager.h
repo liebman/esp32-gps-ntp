@@ -48,6 +48,9 @@ public:
     void     setBias(float bias);
     float    getTarget();
     void     setTarget(float target);
+    bool     isValid(); // is GPS valid
+    uint32_t getValidDuration();
+    uint32_t getValidCount();
 
     static const uint32_t PID_INTERVAL = 1;
     static const uint32_t OFFSET_DATA_SIZE = 10;

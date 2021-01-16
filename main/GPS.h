@@ -54,7 +54,8 @@ public:
     int   getFixType();
     // from RMC
     bool  getValid(uint32_t max_wait_ms=10);
-    uint64_t getValidSince();
+    uint32_t getValidDuration(); // valid duration in seconds
+    uint32_t getValidCount();
     float getLatitude();
     float getLongitude();
     char* getPSTI();
@@ -84,7 +85,7 @@ protected:
     struct timespec     _rmc_time = {0,0};
     volatile uint64_t   _last_rmc = 0;
     volatile uint64_t   _valid_since = 0;
-
+    volatile uint32_t   _valid_count;
     // from ZDA if present
     struct timespec     _zda_time = {0,0};;
 
