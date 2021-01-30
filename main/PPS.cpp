@@ -162,7 +162,7 @@ void IRAM_ATTR PPS::pps(void* data)
 #endif
     uint64_t last = pps->_data->pps_last;
     pps->_data->pps_last = current;
-    if (pps->_disabled)
+    if (pps->_data->pps_disabled)
     {
         LATENCY_END();
         return;
@@ -182,7 +182,7 @@ void IRAM_ATTR PPS::pps(void* data)
 
     if (pps->_ref != nullptr)
     {
-        last_offset = _data->pps_offset;
+        last_offset = pps->_data->pps_offset;
 
         int32_t delta = pps->_data->pps_last - pps->_ref->_data->pps_last;
         // we only care about microseconds so we will keep the delta
@@ -195,7 +195,7 @@ void IRAM_ATTR PPS::pps(void* data)
         {
             delta += 1000000;
         }
-        _data->pps_offset = delta;
+        pps->_data->pps_offset = delta;
     }
 
     // no stats for the first few seconds
@@ -211,7 +211,7 @@ void IRAM_ATTR PPS::pps(void* data)
 #if 1
         ets_printf("ERROR: %d: short (%d) @%lu lo=%d\n", pps->_pin, interval, pps->_data->pps_time, last_offset);
 #endif
-        pps->_timer_short += 1;
+        pps->_data->pps_short += 1;
         pps->_data->pps_min = 0;
         LATENCY_END();
         return;
@@ -227,7 +227,7 @@ void IRAM_ATTR PPS::pps(void* data)
 #if 1
         ets_printf("ERROR: %d: long (%d) @%lu lo=%d\n", pps->_pin, interval, pps->_data->pps_time, last_offset);
 #endif
-        pps->_timer_long += 1;
+        pps->_data->pps_long += 1;
         pps->_data->pps_max = 0;
         LATENCY_END();
         return;
