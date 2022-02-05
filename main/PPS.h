@@ -32,9 +32,6 @@
 #include "driver/timer.h"
 #include "MicroSecondTimer.h"
 
-//#define USE_LEVEL_INTERRUPT
-//#define USE_INTERRUPT_SERVICE
-
 typedef struct pps_data
 {
     volatile uint32_t pps_pin;
@@ -72,11 +69,7 @@ protected:
     MicroSecondTimer& _timer;
     pps_data_t*       _data;
     PPS*              _ref;
-    gpio_num_t         _pin           = GPIO_NUM_NC;
-#ifdef USE_LEVEL_INTERRUPT
-    int                 _expect_skip  = 0;
-    int               _expect       = 0;
-#endif
+    gpio_num_t         _pin = GPIO_NUM_NC;
 private:
     static void pps(void* data);
 
