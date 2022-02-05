@@ -12,18 +12,6 @@ menu "GPS NTP Server"
         help
             GPIO that has RTC SQW signal connected
 
-    config GPSNTP_MISS_TIME
-        int "Max PPS pulse interval"
-        default 1000050
-        help
-            Maximum time in microseconds for PPS pulse
-
-    config GPSNTP_SHORT_TIME
-        int "Min PPS pulse interval"
-        default 999950
-        help
-            Minimum time in microseconds for PPS pulse
-
     config GPSNTP_RTC_DRIFT_MAX
         int "Maximum drift for RTC pulse"
         default 500
