@@ -45,7 +45,6 @@
 #include "PageSync.h"
 #include "PageGPS.h"
 #include "PageSats.h"
-#include "PageTask.h"
 #include "PageNTP.h"
 
 #define LATENCY_PIN 2
