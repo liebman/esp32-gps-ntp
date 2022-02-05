@@ -87,9 +87,6 @@ static const char* TAG = "main";
 extern pps_data_t rtc_pps_data; // in highint5.S
 extern pps_data_t gps_pps_data; // in highint5.S
 
-//#define NO_GPS_PPS
-//#define NO_RTC_PPS
-
 static Config config;
 static MicroSecondTimer usec_timer;
 static PPS gps_pps(usec_timer, &gps_pps_data);
@@ -101,6 +98,7 @@ static SyncManager syncman(gps, rtc, gps_pps, rtc_pps);
 
 static void apply_config()
 {
+    ESP_LOGI(TAG, "apply_config()");
     syncman.setBias(config.getBias());
     syncman.setTarget(config.getTarget());
 }
@@ -180,15 +178,12 @@ static void init(void* data)
         ESP_LOGE(TAG, "failed to start gps!");
     }
 
-#ifndef NO_GPS_PPS
     // start pps watching gps
     if (!gps_pps.begin(GPS_PPS_PIN))
     {
         ESP_LOGE(TAG, "failed to start GPS pps!");
     }
-#endif
 
-#ifndef NO_RTC_PPS
     // start pps watching rtc
     if (!rtc_pps.begin(RTC_PPS_PIN, true))
     {
@@ -207,7 +202,6 @@ static void init(void* data)
     struct tm tm;
     rtc.getTime(&tm);
     rtc_pps.setTime(mktime(&tm));
-#endif
 
     // start NTP services
     ntp.begin();
@@ -221,9 +215,6 @@ static void init(void* data)
     new PageDelta(syncman);
     new PageGPS(gps);
     new PageSats(gps);
-#if 0
-    new PageTask();
-#endif
     new PageConfig(config, apply_config);
     new PageAbout();
 
@@ -233,7 +224,6 @@ static void init(void* data)
 void app_main()
 {
     ESP_LOGI(TAG, "Starting with priority %d core %d", uxTaskPriorityGet(nullptr), xPortGetCoreID());
-
     //Initialize NVS
     ESP_LOGI(TAG, "initializing NVS");
     esp_err_t ret = nvs_flash_init();
@@ -259,38 +249,12 @@ void app_main()
     {
         struct timeval gps_tv;
         gps_pps.getTime(&gps_tv);
-        time_t gps_time = gps.getRMCTime();
         bool now_valid = gps.getValid();
-        if (was_valid != now_valid
-        || (now_valid 
-            && gps_tv.tv_usec > 800000 
-            && gps_tv.tv_usec < 900000 
-            && gps_time != gps_tv.tv_sec))
+        if (was_valid != now_valid)
         {
-            if (now_valid)
-            {
-                gps_pps.setTime(gps.getRMCTime());
-                struct timeval tv;
-                gps_pps.getTime(&tv);
-                settimeofday(&tv, nullptr);
-                ESP_LOGW(TAG, "gps gained validity, time has been set!");
-            }
-            else
-            {
-                ESP_LOGW(TAG, "gps lost validity!");
-            }
+            ESP_LOGW(TAG, "gps %s validity!", now_valid ? "gained" : "lost");
             was_valid = now_valid;
         }
-
-#if 0
-        time_t now = time(nullptr);
-        static time_t last_report = 0;
-        if (now > last_report+60)
-        {
-            ESP_LOGI(TAG, "now valid: %d is_on: %d idle: %u", now_valid, is_on, Display::getDisplay().getIdleTime());
-            last_report = now;
-        }
-#endif
 
         if (Display::getDisplay().getIdleTime() > 3600) // 1 hr
         {
