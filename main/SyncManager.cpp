@@ -54,7 +54,7 @@ SyncManager::SyncManager(GPS& gps, DS3231& rtc, PPS& gpspps, PPS& rtcpps)
 
 bool SyncManager::begin()
 {
-    ESP_LOGI(TAG, "::begin create GPS task at priority %d core %d", SYNC_TASK_PRI, SYNC_TASK_CORE);
+    ESP_LOGI(TAG, "::begin create Sync task at priority %d core %d", SYNC_TASK_PRI, SYNC_TASK_CORE);
     xTaskCreatePinnedToCore(task, "Sync", 4096, this, SYNC_TASK_PRI, &_task, SYNC_TASK_CORE);
     return true;
 }
@@ -129,11 +129,11 @@ void SyncManager::recordOffset()
 
     uint32_t gps_interval = _gpspps.getTimerInterval();
     uint32_t rtc_interval = _rtcpps.getTimerInterval();
-    if (rtc_interval < 999950 || rtc_interval > 10000050)
+    if (rtc_interval < 999950 || rtc_interval > 1000050)
     {
         ESP_LOGW(TAG, "::recordOffset: RTC interval out of range: %u", rtc_interval);
     }
-    if (gps_interval < 999950 || gps_interval > 10000050)
+    if (gps_interval < 999950 || gps_interval > 1000050)
     {
         ESP_LOGW(TAG, "::recordOffset: GPS interval out of range: %u", gps_interval);
     }
@@ -181,6 +181,11 @@ uint32_t SyncManager::getValidDuration()
 uint32_t SyncManager::getValidCount()
 {
     return _gps.getValidCount();
+}
+
+int8_t SyncManager::getOutput()
+{
+    return _output;
 }
 
 /**
@@ -246,7 +251,6 @@ void SyncManager::manageDrift(float offset)
         // only initialize on a non-zero offset
         if (offset != 0)
         {
-            ESP_LOGD(TAG, "::manageDrift: reset calculation base with start offset=%0.3f", offset);
             _drift_start_time = now;
         }
         return;
@@ -300,6 +304,7 @@ void SyncManager::manageDrift(float offset)
 
         if (_rtc.getAgeOffset() != (int8_t)output)
         {
+            _output = output;
             _rtc.setAgeOffset((int8_t)output);
             ESP_LOGI(TAG, "::manageDrift: target=%0.1f offset=%0.1f/%d/%d error=%0.1f i=%0.1f d=%0.1f bias=%0.1f out=%d",
                     _target, offset, min_offset, max_offset, error, _integral, derivative, _bias, (int8_t)output);
@@ -315,7 +320,7 @@ void SyncManager::process()
     struct tm tm;
     _rtc.getTime(&tm);
     _rtc_time = mktime(&tm);
-#if 1
+
     // if the GPS is not valid then reset the offset and return
     if (!_gps.getValid())
     {
@@ -338,13 +343,24 @@ void SyncManager::process()
         && gps_tv.tv_usec < 900000
         && interval > 10)
     {
+        // since we are almost at teh end of a second the gps message for the current sencond should have arrived
+        // and we can compare it with the gps_pps second counter and update the counter if different.
+        time_t gps_seconds = _gps.getRMCTime();
+        if (gps_seconds != gps_tv.tv_sec)
+        {
+            ESP_LOGW(TAG, "updating GPS PPS Time PPS %ld -> %ld (%+ld seconds)",
+                          gps_tv.tv_sec, gps_seconds, gps_seconds-gps_tv.tv_sec);
+            _gpspps.setTime(gps_seconds);
+            gps_tv.tv_sec = gps_seconds;
+        }
         ESP_LOGV(TAG, "pps offset %0.3f", offset);
         _last_time = gps_tv.tv_sec;
 
         if (abs(offset) > RTC_DRIFT_MAX || gps_tv.tv_sec != rtc_tv.tv_sec)
         {
             setTime(offset);
-            ESP_LOGI(TAG, "time correction happened!  PPS offset=%0.3fus gps_time=%ld rtc_time%ld", offset, gps_tv.tv_sec, rtc_tv.tv_sec);
+            ESP_LOGW(TAG, "time correction happened!  PPS offset=%0.3fus gps_time=%ld rtc_time=%ld (%+ld seconds)",
+                          offset, gps_tv.tv_sec, rtc_tv.tv_sec, gps_tv.tv_sec-rtc_tv.tv_sec);
             struct timeval tv;
             _rtcpps.getTime(&tv);
             settimeofday(&tv, nullptr);
@@ -354,7 +370,6 @@ void SyncManager::process()
     }
 
     manageDrift(offset);
-#endif
 }
 
 void SyncManager::task(void* data)
@@ -411,5 +426,5 @@ void SyncManager::setTime(int32_t delta)
     gpio_set_level(LATENCY_PIN, 0);
 #endif
 
-    ESP_LOGD(TAG, "setTime: success setting time! microsecond value=%ld loops=%u", tv.tv_usec, loops);
+    ESP_LOGI(TAG, "setTime: success setting time! microsecond value=%ld loops=%u", tv.tv_usec, loops);
 }

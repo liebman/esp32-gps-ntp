@@ -29,7 +29,7 @@ static const char* TAG = "TIMER";
 
 MicroSecondTimer::MicroSecondTimer()
 {
-    ESP_LOGI(TAG, "::begin configuring and starting microsecond timer");
+    ESP_LOGI(TAG, "::MicroSecondTimer configuring and starting microsecond timer");
     timer_config_t tc = {
         .alarm_en    = TIMER_ALARM_DIS,
         .counter_en  = TIMER_PAUSE,

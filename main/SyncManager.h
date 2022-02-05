@@ -51,7 +51,7 @@ public:
     bool     isValid(); // is GPS valid
     uint32_t getValidDuration();
     uint32_t getValidCount();
-
+    int8_t   getOutput();
     static const uint32_t PID_INTERVAL = 1;
     static const uint32_t OFFSET_DATA_SIZE = 10;
 
@@ -86,7 +86,7 @@ private:
     uint32_t        _offset_count       = 0;
     float           _integral           = 0.0;
     float           _previous_error     = 0.0;
-
+    int8_t          _output             = 0;
     void recordOffset();
     void resetOffset();
     void manageDrift(float offset);

@@ -42,8 +42,11 @@ enum Row
     OFFSET,
     ERROR,
     INTEGRAL,
+    OUTPUT,
     _NUM_ROWS
 };
+
+static const char* labels[_NUM_ROWS] = {"RTC:", "GPS:", "RTC PPS:", "GPS PPS:", "Offset:", "Error:", "Integral:", "Output:"};
 
 PageSync::PageSync(SyncManager& syncman)
 : _syncman(syncman)
@@ -72,29 +75,13 @@ PageSync::PageSync(SyncManager& syncman)
         _table->setColumnWidth(0, 80);
         _table->setColumnWidth(1, 160);
         _table->setRowCount(Row::_NUM_ROWS);
-        _table->setCellAlign(Row::RTC_TIME, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::GPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::RTC_PPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::GPS_PPS_TIME, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::OFFSET, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::ERROR, 0, LV_LABEL_ALIGN_RIGHT);
-        _table->setCellAlign(Row::INTEGRAL, 0, LV_LABEL_ALIGN_RIGHT);
 
-        _table->setCellValue(Row::RTC_TIME, 0, "RTC:");
-        _table->setCellValue(Row::GPS_TIME, 0, "GPS:");
-        _table->setCellValue(Row::RTC_PPS_TIME, 0, "RTC PPS:");
-        _table->setCellValue(Row::GPS_PPS_TIME, 0, "GPS PPS:");
-        _table->setCellValue(Row::OFFSET, 0, "Offset:");
-        _table->setCellValue(Row::ERROR, 0, "Error:");
-        _table->setCellValue(Row::INTEGRAL, 0, "Integral:");
-
-        _table->setCellAlign(Row::RTC_TIME, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::GPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::RTC_PPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::GPS_PPS_TIME, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::OFFSET, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::ERROR, 1, LV_LABEL_ALIGN_LEFT);
-        _table->setCellAlign(Row::INTEGRAL, 1, LV_LABEL_ALIGN_LEFT);
+        for (int row = 0; row < Row::_NUM_ROWS; ++row)
+        {
+            _table->setCellAlign(row, 0, LV_LABEL_ALIGN_RIGHT);
+            _table->setCellValue(row, 0, labels[row]);
+            _table->setCellAlign(row, 1, LV_LABEL_ALIGN_LEFT);
+        }
 
         ESP_LOGI(TAG, "creating task");
         lv_task_create(task, 100, LV_TASK_PRIO_LOW, this);
@@ -155,4 +142,7 @@ void PageSync::update()
 
     snprintf(buf, sizeof(buf)-1, "%0.3f", _syncman.getIntegral());
     _table->setCellValue(Row::INTEGRAL, 1, buf);
+
+    snprintf(buf, sizeof(buf)-1, "%d", _syncman.getOutput());
+    _table->setCellValue(Row::OUTPUT, 1, buf);
 }
