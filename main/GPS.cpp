@@ -40,6 +40,8 @@ static const char* TAG = "GPS";
 #define GPS_TASK_CORE 0
 #endif
 
+#define MINUTES2USECS(m) (m*60*1000000)
+
 typedef union {
     struct minmea_sentence_rmc rmc;
     struct minmea_sentence_gga gga;
@@ -201,9 +203,11 @@ bool GPS::getValid(uint32_t max_wait_ms)
             xSemaphoreGive(_lock);
             return false;
         }
-        // return valid only if it has been valid for over a minute
+        // return valid only if it has been valid for over 20 minutes
+        // because in the first few minutes sometimes the time is off
+        // by a couple of seconds even when GPS sends valid.
         age = now - _valid_since;
-        if (age > 60000000)
+        if (age > MINUTES2USECS(20))
         {
             ret = _valid;
         }
@@ -283,6 +287,11 @@ void GPS::process(char* sentence)
             {
                 _valid_since = _last_rmc;
                 _valid_count += 1;
+                ESP_LOGI(TAG, "::process device reports valid!  count=%u", _valid_count);
+            }
+            else if (!_valid && was_valid)
+            {
+                ESP_LOGW(TAG, "::process device reports NOT valid!");
             }
 
             ESP_LOGD(TAG, "$xxRMC coordinates and speed: (%f,%f) %f",
@@ -393,14 +402,7 @@ void GPS::process(char* sentence)
             {
                 strncpy(_psti, sentence, sizeof(_psti)-1);
                 // TODO: parse $PSTI,00 for not hide it if its timing mode 2
-#if 0
-                if (strncmp("$PSTI,00,2,", sentence, 11) == 0)
-                {
-                    break;
-                }
-#else
                 break;
-#endif
             }
 
             ESP_LOGW(TAG, "::process sentence invalid: '%s'", sentence);
