@@ -108,6 +108,12 @@ xt_highint5:
     movi    a2, TIMG_T0UPDATE_REG(0)
     s32i    a0, a2, 0
     memw
+
+    /* wait to insure timer value was updated before reading */
+wait_for_timer:
+    l32i    a0, a2, 0
+    bnez    a0, wait_for_timer
+
     /* read timer value lower 32 bits A6 will hold this value thruout */
     movi    a2, TIMG_T0LO_REG(0)
     l32i    a6, a2, 0
