@@ -68,24 +68,10 @@ bool DS3231::begin()
     ESP_LOGI(TAG, "aging:   %d",     (int8_t)data[AGEOFFSET]);
 
     _age_offset = (int8_t)data[AGEOFFSET];
-#if 0
-    //
-    // if the age offset is outside a normal range then zero it!
-    //  (30 is > 2ppm)
-    if (abs(_age_offset) >= 30)
-    {
-        setAgeOffset(0);
-    }
-#endif
 
     updateReg(CONTROL, SQWAVE_1HZ, EOSC|BBSQW|SQWAVE_MASK|INTCN);
     updateReg(STATUS, 0, OSC_STOP_FLAG);
     updateReg(HOURS, 0, DS3231_12HR);
-
-#if 0
-    writeReg(AGEOFFSET, 0);
-    updateReg(CONTROL, CONV, CONV);
-#endif
 
     return true;
 }
